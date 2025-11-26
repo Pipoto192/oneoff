@@ -201,7 +201,7 @@ export default function Lobby() {
               
               {!spotifyToken ? (
                 <a 
-                  href="http://localhost:3001/login"
+                  href={`${process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3001'}/login`}
                   className="inline-flex items-center px-4 py-2 bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold rounded-full transition-colors"
                 >
                   Connect Spotify
