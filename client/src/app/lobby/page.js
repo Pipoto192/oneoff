@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Play, User, Music, AlertTriangle, Crown, CheckCircle, ListMusic } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
+import { AdMob } from '@capacitor-community/admob';
 
 function LobbyContent() {
   const searchParams = useSearchParams();
@@ -18,12 +19,37 @@ function LobbyContent() {
   const [voteCount, setVoteCount] = useState(0);
   const [hasVoted, setHasVoted] = useState(false);
   const audioRef = useRef(null);
+  const gamesPlayedRef = useRef(0); // Track games played without re-renders
 
   // Spotify State
   const [spotifyToken, setSpotifyToken] = useState(null);
   const [playlists, setPlaylists] = useState([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState(null);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
+
+  // Initialize AdMob
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      AdMob.initialize({
+        requestTrackingAuthorization: true,
+        initializeForTesting: true,
+      }).catch(err => console.error('AdMob Init Error:', err));
+    }
+  }, []);
+
+  const showInterstitial = async () => {
+    if (!Capacitor.isNativePlatform()) return;
+    console.log('Showing Interstitial Ad...');
+    try {
+      await AdMob.prepareInterstitial({
+        adId: 'ca-app-pub-3940256099942544/1033173712', // Test Ad Unit ID
+        isTesting: true
+      });
+      await AdMob.showInterstitial();
+    } catch (e) {
+      console.error('AdMob Show Error:', e);
+    }
+  };
 
   // Handle Deep Links (Capacitor)
   useEffect(() => {
@@ -124,6 +150,13 @@ function LobbyContent() {
     socket.on('game_over', (results) => {
       setRoom(prev => ({ ...prev, gameState: 'RESULTS' }));
       setGameData(prev => ({ ...prev, results }));
+      
+      // Increment games played and check for ad
+      gamesPlayedRef.current += 1;
+      console.log(`Games played: ${gamesPlayedRef.current}`);
+      if (gamesPlayedRef.current % 2 === 0) {
+        showInterstitial();
+      }
     });
 
     socket.on('return_to_lobby', ({ room }) => {
