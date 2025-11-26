@@ -1,11 +1,14 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSocket } from '@/context/SocketContext';
-import { useParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Play, User, Music, AlertTriangle, Crown, CheckCircle, ListMusic } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 
-export default function Lobby() {
-  const { id: roomId } = useParams();
+function LobbyContent() {
+  const searchParams = useSearchParams();
+  const roomId = searchParams.get('id');
   const socket = useSocket();
   const router = useRouter();
   const [room, setRoom] = useState(null);
@@ -22,7 +25,41 @@ export default function Lobby() {
   const [selectedPlaylist, setSelectedPlaylist] = useState(null);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
 
+  // Handle Deep Links (Capacitor)
   useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      App.addListener('appUrlOpen', (data) => {
+        console.log('App opened with URL:', data.url);
+        if (data.url.includes('spotify-callback')) {
+          // Extract hash parameters
+          const hash = data.url.split('#')[1];
+          if (hash) {
+            const params = new URLSearchParams(hash);
+            const accessToken = params.get('access_token');
+            const refreshToken = params.get('refresh_token');
+            const error = params.get('error');
+
+            if (accessToken) {
+              console.log('Got Spotify Token from Deep Link');
+              localStorage.setItem('spotify_access_token', accessToken);
+              if (refreshToken) localStorage.setItem('spotify_refresh_token', refreshToken);
+              setSpotifyToken(accessToken);
+            } else if (error) {
+              console.error('Spotify Auth Error from Deep Link:', error);
+              alert('Spotify Login Failed: ' + error);
+            }
+          }
+        }
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!roomId) {
+        router.push('/');
+        return;
+    }
+
     if (!socket) {
       console.log('Socket not initialized yet');
       return;
@@ -131,9 +168,17 @@ export default function Lobby() {
       fetch('https://api.spotify.com/v1/me/playlists?limit=20', {
         headers: { 'Authorization': `Bearer ${spotifyToken}` }
       })
-      .then(res => res.json())
+      .then(res => {
+        if (res.status === 401) {
+          console.error("Spotify Token Expired or Invalid");
+          localStorage.removeItem('spotify_access_token');
+          setSpotifyToken(null);
+          return null;
+        }
+        return res.json();
+      })
       .then(data => {
-        if (data.items) {
+        if (data && data.items) {
           setPlaylists(data.items);
         }
       })
@@ -201,14 +246,25 @@ export default function Lobby() {
               
               {!spotifyToken ? (
                 <a 
-                  href={`${process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3001'}/login`}
+                  href={`${process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3001'}/login${Capacitor.isNativePlatform() ? '?return_to=musicimposter://spotify-callback' : ''}`}
                   className="inline-flex items-center px-4 py-2 bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold rounded-full transition-colors"
                 >
                   Connect Spotify
                 </a>
               ) : (
                 <div className="space-y-4">
-                  <p className="text-sm text-green-400">✓ Spotify Connected</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-green-400">✓ Spotify Connected</p>
+                    <button 
+                      onClick={() => {
+                        localStorage.removeItem('spotify_access_token');
+                        setSpotifyToken(null);
+                      }}
+                      className="text-xs text-red-400 hover:text-red-300 underline"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
                   {loadingPlaylists ? (
                     <p className="text-slate-400">Loading playlists...</p>
                   ) : (
@@ -374,5 +430,13 @@ export default function Lobby() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function Lobby() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white">Loading...</div>}>
+      <LobbyContent />
+    </Suspense>
   );
 }

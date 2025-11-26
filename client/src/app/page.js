@@ -32,7 +32,7 @@ export default function Home() {
     socket.once('room_created', ({ roomId, userId }) => {
       localStorage.setItem('userId', userId);
       localStorage.setItem('username', username);
-      router.push(`/lobby/${roomId}`);
+      router.push(`/lobby?id=${roomId}`);
     });
   };
 
@@ -45,7 +45,7 @@ export default function Home() {
     socket.once('joined_room', ({ roomId, userId }) => {
       localStorage.setItem('userId', userId);
       localStorage.setItem('username', username);
-      router.push(`/lobby/${roomId}`);
+      router.push(`/lobby?id=${roomId}`);
     });
     socket.once('error', ({ message }) => {
       alert(message);

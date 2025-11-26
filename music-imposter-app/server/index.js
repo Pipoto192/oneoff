@@ -44,7 +44,14 @@ app.get('/debug', (req, res) => {
 
 // Spotify Auth Routes
 app.get('/login', (req, res) => {
-  const state = uuidv4();
+  const returnTo = req.query.return_to || null;
+  const stateData = {
+    id: uuidv4(),
+    returnTo: returnTo
+  };
+  // Encode state as base64 json to be safe
+  const state = Buffer.from(JSON.stringify(stateData)).toString('base64');
+  
   const scope = 'user-read-private user-read-email playlist-read-private playlist-read-collaborative';
   res.redirect('https://accounts.spotify.com/authorize?' +
     querystring.stringify({
@@ -60,8 +67,22 @@ app.get('/callback', async (req, res) => {
   const code = req.query.code || null;
   const state = req.query.state || null;
 
+  let returnTo = CLIENT_URL; // Default to env var
+
+  if (state) {
+    try {
+        const decodedState = JSON.parse(Buffer.from(state, 'base64').toString());
+        if (decodedState.returnTo) {
+            returnTo = decodedState.returnTo;
+            console.log("Redirecting to custom URL:", returnTo);
+        }
+    } catch (e) {
+        console.error("Failed to parse state:", e);
+    }
+  }
+
   if (state === null) {
-    res.redirect(CLIENT_URL + '/#' + querystring.stringify({ error: 'state_mismatch' }));
+    res.redirect(returnTo + '/#' + querystring.stringify({ error: 'state_mismatch' }));
   } else {
     try {
       const response = await axios.post('https://accounts.spotify.com/api/token', 
@@ -79,11 +100,26 @@ app.get('/callback', async (req, res) => {
       const access_token = response.data.access_token;
       const refresh_token = response.data.refresh_token;
 
-      res.redirect(CLIENT_URL + '/spotify-callback#' + 
+      // If returnTo is a custom scheme (like musicimposter://), we might need to handle it differently
+      // But usually appending hash works fine.
+      // For deep links: musicimposter://spotify-callback#access_token=...
+      // For web: http://localhost:3000/spotify-callback#access_token=...
+      
+      let redirectUrl = returnTo;
+      if (!redirectUrl.includes('://')) {
+          // Assume it's a path relative to CLIENT_URL if it was just a path (not implemented here but good practice)
+      }
+      
+      // If it's a web URL, append /spotify-callback if not present (legacy support)
+      if (redirectUrl.startsWith('http') && !redirectUrl.includes('spotify-callback')) {
+          redirectUrl += '/spotify-callback';
+      }
+
+      res.redirect(redirectUrl + '#' + 
         querystring.stringify({ access_token, refresh_token }));
     } catch (error) {
       console.error('Spotify Auth Error:', error.response?.data || error.message);
-      res.redirect(CLIENT_URL + '/#' + querystring.stringify({ error: 'invalid_token' }));
+      res.redirect(returnTo + '/#' + querystring.stringify({ error: 'invalid_token' }));
     }
   }
 });
