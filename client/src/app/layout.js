@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Music Imposter",
+  title: "OneOff",
   description: "Find the imposter listening to a different song!",
 };
 

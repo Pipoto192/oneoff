@@ -32,7 +32,7 @@ function LobbyContent() {
     if (Capacitor.isNativePlatform()) {
       AdMob.initialize({
         requestTrackingAuthorization: true,
-        initializeForTesting: true,
+        initializeForTesting: false,
       }).catch(err => console.error('AdMob Init Error:', err));
     }
   }, []);
@@ -42,8 +42,8 @@ function LobbyContent() {
     console.log('Showing Interstitial Ad...');
     try {
       await AdMob.prepareInterstitial({
-        adId: 'ca-app-pub-3940256099942544/1033173712', // Test Ad Unit ID
-        isTesting: true
+        adId: 'ca-app-pub-9755109992994241/1905502829', // Real Ad Unit ID
+        isTesting: false
       });
       await AdMob.showInterstitial();
     } catch (e) {
