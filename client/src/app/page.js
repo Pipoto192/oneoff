@@ -69,7 +69,7 @@ export default function Home() {
             </div>
             
             <div className="space-y-4 text-slate-300 text-sm">
-              <p className="font-medium text-white">Willkommen bei Music Imposter!</p>
+              <p className="font-medium text-white">Willkommen bei OneOff!</p>
               <ul className="space-y-2 list-disc pl-4">
                 <li>Erstelle eine Lobby oder tritt einer bei.</li>
                 <li>Alle hören die <span className="text-purple-400 font-bold">gleiche Musik</span>.</li>
@@ -105,7 +105,7 @@ export default function Home() {
             </div>
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-            Music Imposter
+            OneOff
           </h1>
           <p className="text-slate-300 text-sm sm:text-base">Finde heraus, wer den falschen Beat hört!</p>
         </div>
