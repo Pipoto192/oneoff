@@ -24,7 +24,7 @@ export default function Home() {
   };
 
   const createRoom = () => {
-    if (!username) return alert('Please enter a username');
+    if (!username) return alert('Bitte gib einen Benutzernamen ein');
     const userId = localStorage.getItem('userId') || 'user_' + Math.random().toString(36).substr(2, 9);
     localStorage.setItem('userId', userId);
     
@@ -37,7 +37,7 @@ export default function Home() {
   };
 
   const joinRoom = () => {
-    if (!username || !roomId) return alert('Please enter username and room ID');
+    if (!username || !roomId) return alert('Bitte gib Benutzername und Raum-ID ein');
     const userId = localStorage.getItem('userId') || 'user_' + Math.random().toString(36).substr(2, 9);
     localStorage.setItem('userId', userId);
 

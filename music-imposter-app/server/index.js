@@ -188,7 +188,8 @@ io.on('connection', (socket) => {
       imposterId: null,
       currentSongs: null,
       availableTracks: null, // Will be populated from Spotify
-      playlistName: null
+      playlistName: null,
+      showRoles: false
     };
 
     socket.join(roomId);
@@ -202,7 +203,7 @@ io.on('connection', (socket) => {
 
     if (!rooms[safeRoomId]) {
       console.log(`[JOIN] Room ${safeRoomId} not found`);
-      socket.emit('error', { message: 'Room not found' });
+      socket.emit('error', { message: 'Raum nicht gefunden' });
       return;
     }
 
@@ -220,7 +221,7 @@ io.on('connection', (socket) => {
     }
 
     if (rooms[safeRoomId].gameState !== 'LOBBY') {
-      socket.emit('error', { message: 'Game already in progress' });
+      socket.emit('error', { message: 'Spiel läuft bereits' });
       return;
     }
 
@@ -272,7 +273,7 @@ io.on('connection', (socket) => {
       console.log(`[PLAYLIST] Found ${tracks.length} valid tracks (previews will be fetched on demand).`);
 
       if (tracks.length < 2) {
-        socket.emit('error', { message: `Playlist needs at least 2 songs!` });
+        socket.emit('error', { message: `Playlist braucht mindestens 2 Songs!` });
         return;
       }
 
@@ -294,7 +295,16 @@ io.on('connection', (socket) => {
 
     } catch (error) {
       console.error('Spotify API Error:', error.message);
-      socket.emit('error', { message: 'Failed to load playlist' });
+      socket.emit('error', { message: 'Fehler beim Laden der Playlist' });
+    }
+  });
+
+  // Toggle Show Roles (Host only)
+  socket.on('toggle_show_roles', ({ roomId, showRoles }) => {
+    const room = rooms[roomId];
+    if (room) {
+      room.showRoles = showRoles;
+      io.to(roomId).emit('room_settings_updated', { showRoles: room.showRoles });
     }
   });
 
@@ -309,7 +319,7 @@ io.on('connection', (socket) => {
       : [...FALLBACK_SONGS];
 
     if (songPool.length < 2) {
-        io.to(roomId).emit('error', { message: 'Not enough songs to start!' });
+        io.to(roomId).emit('error', { message: 'Nicht genügend Songs zum Starten!' });
         return;
     }
 
@@ -339,7 +349,7 @@ io.on('connection', (socket) => {
     }
 
     if (!commonSong || !imposterSong) {
-         io.to(roomId).emit('error', { message: 'Could not find playable previews for these songs. Try another playlist.' });
+         io.to(roomId).emit('error', { message: 'Keine abspielbaren Previews gefunden. Versuche eine andere Playlist.' });
          return;
     }
 
@@ -362,7 +372,7 @@ io.on('connection', (socket) => {
       const songToPlay = isImposter ? imposterSong : commonSong;
       
       io.to(user.socketId).emit('game_started', {
-        // role: isImposter ? 'IMPOSTER' : 'INNOCENT', // HIDDEN ROLE
+        role: isImposter ? 'IMPOSTER' : 'INNOCENT',
         song: songToPlay,
         duration: 30 // 30 seconds snippet
       });
