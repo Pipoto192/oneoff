@@ -1,0 +1,13 @@
+{
+  "name": "oneoff-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "cd music-imposter-app/server && npm install",
+    "build": "echo 'No build step required'",
+    "start": "cd music-imposter-app/server && npm start"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
