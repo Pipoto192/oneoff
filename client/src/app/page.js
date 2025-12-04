@@ -156,6 +156,12 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        <div className="text-center pt-2">
+          <a href="/beta" className="text-xs text-slate-500 hover:text-purple-400 transition-colors underline decoration-dotted">
+            Beta-Tester werden?
+          </a>
+        </div>
       </div>
     </main>
   );
