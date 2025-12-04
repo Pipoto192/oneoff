@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:mobile": "cross-env NEXT_PUBLIC_IS_CAPACITOR=true next build",
     "start": "next start",
     "lint": "eslint"
   },
@@ -27,6 +28,7 @@
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
     "@tailwindcss/postcss": "^4",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.0.4",
     "tailwindcss": "^4"
