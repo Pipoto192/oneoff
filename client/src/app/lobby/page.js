@@ -32,13 +32,17 @@ function LobbyContent() {
   const [playlists, setPlaylists] = useState([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState(null);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
+  const [playlistLink, setPlaylistLink] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Check Pro Status
   useEffect(() => {
     const checkProStatus = async () => {
       try {
         const deviceId = await Device.getId();
-        const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3001';
+        const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'https://prominent-hookworm-dailyvibes-2b2f2caa.koyeb.app';
         const res = await fetch(`${serverUrl}/api/status?deviceId=${deviceId.uuid}`);
         const data = await res.json();
         if (data.isPro) {
@@ -314,12 +318,122 @@ function LobbyContent() {
                 </h3>
                 
                 {!spotifyToken ? (
-                  <a 
-                    href={`${process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3001'}/login${Capacitor.isNativePlatform() ? '?return_to=musicimposter://spotify-callback' : ''}`}
-                    className="inline-flex items-center px-4 py-2 bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold rounded-full transition-colors"
-                  >
-                    Spotify verbinden
-                  </a>
+                  <div className="space-y-4">
+                    {/* Search Input */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-slate-400">Playlist suchen</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="Suche (z.B. 'Top 50 Germany')" 
+                          className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              // Trigger search
+                              setIsSearching(true);
+                              const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'https://prominent-hookworm-dailyvibes-2b2f2caa.koyeb.app';
+                              fetch(`${serverUrl}/api/search?q=${encodeURIComponent(searchQuery)}&type=playlist`)
+                                .then(res => res.json())
+                                .then(data => {
+                                  if (data.playlists && data.playlists.items) {
+                                    setSearchResults(data.playlists.items);
+                                  } else {
+                                    setSearchResults([]);
+                                  }
+                                })
+                                .catch(err => {
+                                  console.error(err);
+                                  alert('Fehler bei der Suche: ' + err.message);
+                                })
+                                .finally(() => setIsSearching(false));
+                            }
+                          }}
+                        />
+                        <button 
+                          onClick={() => {
+                            if (!searchQuery) return;
+                            setIsSearching(true);
+                            const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'https://prominent-hookworm-dailyvibes-2b2f2caa.koyeb.app';
+                            fetch(`${serverUrl}/api/search?q=${encodeURIComponent(searchQuery)}&type=playlist`)
+                              .then(res => res.json())
+                              .then(data => {
+                                if (data.playlists && data.playlists.items) {
+                                  setSearchResults(data.playlists.items);
+                                } else {
+                                  setSearchResults([]);
+                                }
+                              })
+                              .catch(err => {
+                                console.error(err);
+                                alert('Fehler bei der Suche: ' + err.message);
+                              })
+                              .finally(() => setIsSearching(false));
+                          }}
+                          className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-bold"
+                        >
+                          {isSearching ? '...' : 'Suchen'}
+                        </button>
+                      </div>
+
+                      {searchResults.length > 0 && (
+                        <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto pr-2">
+                          {searchResults.map(pl => (
+                            <button
+                              key={pl.id}
+                              onClick={() => {
+                                handlePlaylistSelect(pl.id, pl.name);
+                                setSearchResults([]);
+                                setSearchQuery('');
+                              }}
+                              className="p-2 rounded-lg text-left text-sm bg-slate-700 hover:bg-slate-600 flex items-center gap-3"
+                            >
+                              {pl.images?.[0]?.url && (
+                                <img src={pl.images[0].url} className="w-8 h-8 rounded" alt="" />
+                              )}
+                              <div className="min-w-0">
+                                <p className="truncate font-medium">{pl.name}</p>
+                                <p className="text-xs text-slate-400 truncate">von {pl.owner.display_name}</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="relative flex items-center py-2">
+                      <div className="flex-grow border-t border-slate-600"></div>
+                      <span className="flex-shrink-0 mx-4 text-slate-400 text-xs">ODER LINK EINFÜGEN</span>
+                      <div className="flex-grow border-t border-slate-600"></div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Spotify Playlist Link..." 
+                        className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none"
+                        value={playlistLink}
+                        onChange={(e) => setPlaylistLink(e.target.value)}
+                      />
+                      <button 
+                        onClick={() => {
+                          if (!playlistLink) return;
+                          // Extract ID from URL (e.g. https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=...)
+                          const match = playlistLink.match(/playlist\/([a-zA-Z0-9]+)/);
+                          if (match && match[1]) {
+                            handlePlaylistSelect(match[1], 'Öffentliche Playlist');
+                            setPlaylistLink('');
+                          } else {
+                            alert('Ungültiger Spotify Link');
+                          }
+                        }}
+                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-bold"
+                      >
+                        Laden
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">

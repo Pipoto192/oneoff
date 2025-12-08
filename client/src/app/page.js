@@ -4,6 +4,7 @@ import { useSocket } from '@/context/SocketContext';
 import { useRouter } from 'next/navigation';
 import { Music, Users, PlayCircle, HelpCircle, X, Download, ExternalLink, Gem } from 'lucide-react';
 import { Device } from '@capacitor/device';
+import { Capacitor } from '@capacitor/core';
 
 function GameEntry() {
   const [username, setUsername] = useState('');
@@ -34,7 +35,7 @@ function GameEntry() {
           return;
         }
 
-        const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3001';
+        const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'https://prominent-hookworm-dailyvibes-2b2f2caa.koyeb.app';
         const res = await fetch(`${serverUrl}/api/status?deviceId=${info.uuid}`);
         
         if (!res.ok) {
@@ -154,7 +155,7 @@ function GameEntry() {
                   if (!redeemCode) return;
                   try {
                     const deviceId = await Device.getId();
-                    const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3001';
+                    const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'https://prominent-hookworm-dailyvibes-2b2f2caa.koyeb.app';
                     const res = await fetch(`${serverUrl}/api/redeem`, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
@@ -342,16 +343,29 @@ function BetaLanding() {
 }
 
 export default function Home() {
-  const [isDev, setIsDev] = useState(false);
+  const [showGame, setShowGame] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if running in development mode
-    if (process.env.NODE_ENV === 'development') {
-      setIsDev(true);
+    // Show Game if in Dev mode OR if running as Capacitor App (Mobile)
+    const isCapacitor = process.env.NEXT_PUBLIC_IS_CAPACITOR === 'true' || Capacitor.isNativePlatform();
+    const isDev = process.env.NODE_ENV === 'development';
+    
+    if (isDev || isCapacitor) {
+      setShowGame(true);
     }
+    setIsLoading(false);
   }, []);
 
-  if (isDev) {
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    );
+  }
+
+  if (showGame) {
     return <GameEntry />;
   }
 

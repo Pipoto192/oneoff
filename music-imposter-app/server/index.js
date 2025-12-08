@@ -132,6 +132,25 @@ app.get('/api/status', async (req, res) => {
 });
 
 // Spotify Auth Routes
+app.get('/api/search', async (req, res) => {
+  const { q, type } = req.query; // type defaults to 'playlist'
+  if (!q) return res.status(400).json({ error: 'Suchbegriff fehlt' });
+
+  try {
+    const token = await getClientCredentialsToken();
+    if (!token) return res.status(500).json({ error: 'Server Token Error' });
+
+    const response = await axios.get(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=${type || 'playlist'}&limit=10`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    res.json(response.data);
+  } catch (error) {
+    console.error('Search Error:', error.message);
+    res.status(500).json({ error: 'Suche fehlgeschlagen' });
+  }
+});
+
 app.get('/login', (req, res) => {
   const returnTo = req.query.return_to || null;
   const stateData = {
