@@ -10,10 +10,23 @@ require('dotenv').config();
 const axios = require('axios');
 const querystring = require('querystring');
 const cookieParser = require('cookie-parser');
+const mongoose = require('mongoose');
+const { Code, Subscription } = require('./models');
 
 const app = express();
 app.use(cors());
 app.use(cookieParser());
+app.use(express.json()); // Enable JSON body parsing
+
+// MongoDB Connection
+const MONGODB_URI = process.env.MONGODB_URI;
+if (MONGODB_URI) {
+  mongoose.connect(MONGODB_URI)
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => console.error('MongoDB Connection Error:', err));
+} else {
+  console.warn('MONGODB_URI not found in .env - Pro features will not work persistently');
+}
 
 console.log("Current Working Directory:", process.cwd());
 const envPath = path.join(process.cwd(), '.env');
@@ -41,6 +54,81 @@ if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET) {
 // Debug Endpoint
 app.get('/debug', (req, res) => {
   res.json(rooms);
+});
+
+// Pro Features API
+app.post('/api/redeem', async (req, res) => {
+  const { code, deviceId } = req.body;
+
+  if (!code || !deviceId) {
+    return res.status(400).json({ success: false, message: 'Code und Device ID erforderlich' });
+  }
+
+  try {
+    // 1. Check if code exists and is valid
+    const codeEntry = await Code.findOne({ code: code });
+    if (!codeEntry) {
+      return res.status(404).json({ success: false, message: 'Ungültiger Code' });
+    }
+
+    if (codeEntry.isRedeemed) {
+      return res.status(400).json({ success: false, message: 'Code wurde bereits eingelöst' });
+    }
+
+    // 2. Calculate expiry
+    let expiryDate = null;
+    if (codeEntry.type === '30days') {
+      const d = new Date();
+      d.setDate(d.getDate() + 30);
+      expiryDate = d;
+    } else {
+      // Lifetime = 100 years
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 100);
+      expiryDate = d;
+    }
+
+    // 3. Create or Update Subscription
+    await Subscription.findOneAndUpdate(
+      { deviceId: deviceId },
+      { 
+        deviceId: deviceId,
+        type: codeEntry.type,
+        expiryDate: expiryDate
+      },
+      { upsert: true, new: true }
+    );
+
+    // 4. Mark code as redeemed
+    codeEntry.isRedeemed = true;
+    await codeEntry.save();
+
+    res.json({ success: true, message: 'Pro aktiviert!', type: codeEntry.type, expiry: expiryDate });
+
+  } catch (error) {
+    console.error('Redeem Error:', error);
+    res.status(500).json({ success: false, message: 'Serverfehler' });
+  }
+});
+
+app.get('/api/status', async (req, res) => {
+  const { deviceId } = req.query;
+  if (!deviceId) return res.json({ isPro: false });
+
+  try {
+    const sub = await Subscription.findOne({ deviceId: deviceId });
+    if (!sub) return res.json({ isPro: false });
+
+    // Check expiry
+    if (new Date() > sub.expiryDate) {
+      return res.json({ isPro: false, expired: true });
+    }
+
+    res.json({ isPro: true, type: sub.type, expiry: sub.expiryDate });
+  } catch (error) {
+    console.error('Status Error:', error);
+    res.json({ isPro: false });
+  }
 });
 
 // Spotify Auth Routes
@@ -294,8 +382,9 @@ io.on('connection', (socket) => {
       });
 
     } catch (error) {
-      console.error('Spotify API Error:', error.message);
-      socket.emit('error', { message: 'Fehler beim Laden der Playlist' });
+      console.error('Spotify API Error:', error.response ? error.response.data : error.message);
+      const errorMsg = error.response?.data?.error?.message || error.message || 'Unbekannter Fehler';
+      socket.emit('error', { message: `Fehler beim Laden der Playlist: ${errorMsg}` });
     }
   });
 
