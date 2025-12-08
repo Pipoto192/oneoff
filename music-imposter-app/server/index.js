@@ -233,6 +233,23 @@ const FALLBACK_SONGS = [
   { id: 5, title: "Sweet Child O' Mine", artist: "Guns N' Roses", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3" },
 ];
 
+// Helper: Get Client Credentials Token (App Token)
+async function getClientCredentialsToken() {
+  try {
+    const response = await axios.post('https://accounts.spotify.com/api/token', 
+      querystring.stringify({ grant_type: 'client_credentials' }), {
+      headers: {
+        'Authorization': 'Basic ' + (Buffer.from(SPOTIFY_CLIENT_ID + ':' + SPOTIFY_CLIENT_SECRET).toString('base64')),
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+    return response.data.access_token;
+  } catch (error) {
+    console.error('Failed to get Client Credentials Token:', error.message);
+    return null;
+  }
+}
+
 // Helper: Fetch preview from Deezer if Spotify fails
 async function getDeezerPreview(artist, title) {
   try {
@@ -342,13 +359,22 @@ io.on('connection', (socket) => {
     console.log(`[PLAYLIST] Fetching tracks for playlist ${playlistId} in room ${roomId}`);
 
     try {
+      let token = accessToken;
+
+      // If no user token provided, try to use Server Token (Client Credentials)
+      if (!token) {
+          console.log("[PLAYLIST] No user token provided. Attempting to use Server Token...");
+          token = await getClientCredentialsToken();
+          if (!token) throw new Error("Could not generate Server Token");
+      }
+
       // Fetch tracks from Spotify
       let allTracks = [];
       let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=50`;
       
       // Fetch first page (limit to 50 for now to be safe/fast)
       const response = await axios.get(nextUrl, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       console.log(`[PLAYLIST] Fetched ${response.data.items.length} items from playlist.`);
