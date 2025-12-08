@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react';
 import { useSocket } from '@/context/SocketContext';
 import { useRouter } from 'next/navigation';
-import { Music, Users, PlayCircle, HelpCircle, X, Download, ExternalLink } from 'lucide-react';
+import { Music, Users, PlayCircle, HelpCircle, X, Download, ExternalLink, Gem } from 'lucide-react';
+import { Device } from '@capacitor/device';
 
 function GameEntry() {
   const [username, setUsername] = useState('');
@@ -11,11 +12,45 @@ function GameEntry() {
   const socket = useSocket();
   const router = useRouter();
 
+  // Pro State
+  const [isPro, setIsPro] = useState(false);
+  const [showRedeemModal, setShowRedeemModal] = useState(false);
+  const [redeemCode, setRedeemCode] = useState('');
+
   useEffect(() => {
     const hasSeenTutorial = localStorage.getItem('hasSeenTutorial');
     if (!hasSeenTutorial) {
       setShowTutorial(true);
     }
+
+    // Check Pro Status
+    const checkProStatus = async () => {
+      try {
+        const info = await Device.getId();
+        console.log("Device Info:", info);
+        
+        if (!info || !info.uuid) {
+          console.warn("No device UUID found");
+          return;
+        }
+
+        const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3001';
+        const res = await fetch(`${serverUrl}/api/status?deviceId=${info.uuid}`);
+        
+        if (!res.ok) {
+            console.error("Server returned error:", res.status, res.statusText);
+            return;
+        }
+
+        const data = await res.json();
+        if (data.isPro) {
+          setIsPro(true);
+        }
+      } catch (e) {
+        console.error("Failed to check pro status:", e);
+      }
+    };
+    checkProStatus();
   }, []);
 
   const closeTutorial = () => {
@@ -87,6 +122,73 @@ function GameEntry() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* PRO REDEEM MODAL */}
+      {showRedeemModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-slate-800 border border-purple-500/30 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Gem className="w-6 h-6 text-yellow-400" />
+                Pro aktivieren
+              </h2>
+              <button onClick={() => setShowRedeemModal(false)} className="text-slate-400 hover:text-white">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-slate-300 text-sm">
+                Gib deinen Code ein, um die Pro-Version freizuschalten und Werbung zu entfernen.
+              </p>
+              <input
+                type="text"
+                value={redeemCode}
+                onChange={(e) => setRedeemCode(e.target.value.toUpperCase())}
+                placeholder="CODE EINGEBEN"
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-white text-center font-mono uppercase"
+              />
+              <button
+                onClick={async () => {
+                  if (!redeemCode) return;
+                  try {
+                    const deviceId = await Device.getId();
+                    const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3001';
+                    const res = await fetch(`${serverUrl}/api/redeem`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ code: redeemCode, deviceId: deviceId.uuid })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                      alert('Pro erfolgreich aktiviert!');
+                      setIsPro(true);
+                      setShowRedeemModal(false);
+                    } else {
+                      alert(data.message || 'Fehler beim Einlösen');
+                    }
+                  } catch (e) {
+                    alert('Verbindungsfehler');
+                  }
+                }}
+                className="w-full py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-bold rounded-xl transition-all shadow-lg"
+              >
+                Einlösen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PRO BUTTON (Top Right) */}
+      {!isPro && (
+        <button
+          onClick={() => setShowRedeemModal(true)}
+          className="fixed top-4 right-4 z-40 p-2 bg-slate-800/80 backdrop-blur-md border border-yellow-500/30 rounded-full shadow-lg hover:bg-slate-700 transition-all group"
+        >
+          <Gem className="w-6 h-6 text-yellow-400 group-hover:scale-110 transition-transform" />
+        </button>
       )}
 
       <div className="w-full max-w-md p-6 sm:p-8 space-y-8 bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 relative">
