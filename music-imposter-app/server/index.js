@@ -538,14 +538,19 @@ io.on('connection', (socket) => {
         room.nearbyId && // Has nearbyId set (host enabled discovery)
         room.gameState === 'LOBBY' &&
         !room.settings?.isPrivate &&
-        room.users.length < 10 // Max players
+        room.users.length > 0 && // Must have at least 1 user
+        room.users.length < 10 && // Max players
+        room.users.some(u => u.isHost) // Must have a host
       )
-      .map(room => ({
-        roomId: room.id,
-        hostName: room.users.find(u => u.isHost)?.name || 'Unbekannt',
-        playerCount: room.users.length,
-        playlistName: room.playlistName
-      }));
+      .map(room => {
+        const host = room.users.find(u => u.isHost);
+        return {
+          roomId: room.id,
+          hostName: host?.name || 'Unbekannt',
+          playerCount: room.users.length,
+          playlistName: room.playlistName
+        };
+      });
 
     console.log(`[NEARBY] Found ${nearbyLobbies.length} discoverable lobbies`);
     socket.emit('nearby_lobbies', { lobbies: nearbyLobbies });
@@ -720,13 +725,29 @@ io.on('connection', (socket) => {
     
     for (const roomId in rooms) {
       const room = rooms[roomId];
-      const user = room.users.find(u => u.socketId === socket.id);
+      const userIndex = room.users.findIndex(u => u.socketId === socket.id);
       
-      if (user) {
-        user.connected = false;
-        // We do NOT remove the user immediately to allow reconnects (refresh).
-        // We only notify others that the user might be offline (optional UI update)
-        // io.to(roomId).emit('user_joined', { room }); 
+      if (userIndex !== -1) {
+        const user = room.users[userIndex];
+        console.log(`[DISCONNECT] User ${user.name} left room ${roomId}`);
+        
+        // Remove user from room
+        room.users.splice(userIndex, 1);
+        
+        // If room is empty, delete it
+        if (room.users.length === 0) {
+          console.log(`[CLEANUP] Room ${roomId} is empty, deleting...`);
+          delete rooms[roomId];
+        } else {
+          // If the host left, make another user host
+          if (user.isHost && room.users.length > 0) {
+            room.users[0].isHost = true;
+            console.log(`[HOST] New host in room ${roomId}: ${room.users[0].name}`);
+          }
+          // Notify others
+          io.to(roomId).emit('user_left', { room });
+        }
+        break; // User can only be in one room
       }
     }
   });
