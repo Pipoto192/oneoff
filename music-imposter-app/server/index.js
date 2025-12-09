@@ -310,10 +310,19 @@ io.on('connection', (socket) => {
       }],
       gameState: 'LOBBY',
       imposterId: null,
+      imposterIds: [], // Support multiple imposters
       currentSongs: null,
       availableTracks: null, // Will be populated from Spotify
       playlistName: null,
-      showRoles: false
+      showRoles: false,
+      // New settings
+      settings: {
+        imposterCount: 1,
+        songDuration: 30, // 15, 30, 45, 60 seconds
+        isPrivate: false
+      },
+      bannedUsers: [], // List of banned user IDs
+      nearbyId: null // For Bluetooth nearby discovery
     };
 
     socket.join(roomId);
@@ -346,6 +355,12 @@ io.on('connection', (socket) => {
 
     if (rooms[safeRoomId].gameState !== 'LOBBY') {
       socket.emit('error', { message: 'Spiel läuft bereits' });
+      return;
+    }
+
+    // Check if user is banned
+    if (rooms[safeRoomId].bannedUsers.includes(userId)) {
+      socket.emit('error', { message: 'Du wurdest aus dieser Lobby gebannt' });
       return;
     }
 
@@ -442,6 +457,112 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Update Room Settings (Host only)
+  socket.on('update_settings', ({ roomId, settings }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+    
+    // Verify sender is host
+    const user = room.users.find(u => u.socketId === socket.id);
+    if (!user || !user.isHost) {
+      socket.emit('error', { message: 'Nur der Host kann Einstellungen ändern' });
+      return;
+    }
+
+    // Validate imposter count based on player count
+    const playerCount = room.users.length;
+    let imposterCount = settings.imposterCount || room.settings.imposterCount;
+    
+    // Max imposters: 1 for <4 players, 2 for 4-5 players, 3 for 6+ players
+    const maxImposters = playerCount < 4 ? 1 : (playerCount < 6 ? 2 : 3);
+    imposterCount = Math.min(imposterCount, maxImposters);
+    imposterCount = Math.max(1, imposterCount);
+
+    // Update settings
+    room.settings = {
+      imposterCount: imposterCount,
+      songDuration: settings.songDuration || room.settings.songDuration,
+      isPrivate: settings.isPrivate !== undefined ? settings.isPrivate : room.settings.isPrivate
+    };
+
+    console.log(`[SETTINGS] Room ${roomId} settings updated:`, room.settings);
+    io.to(roomId).emit('settings_updated', { settings: room.settings, maxImposters });
+  });
+
+  // Kick/Ban Player (Host only)
+  socket.on('kick_player', ({ roomId, targetUserId, ban }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+
+    // Verify sender is host
+    const hostUser = room.users.find(u => u.socketId === socket.id);
+    if (!hostUser || !hostUser.isHost) {
+      socket.emit('error', { message: 'Nur der Host kann Spieler kicken' });
+      return;
+    }
+
+    // Can't kick yourself
+    if (hostUser.id === targetUserId) {
+      socket.emit('error', { message: 'Du kannst dich nicht selbst kicken' });
+      return;
+    }
+
+    const targetUser = room.users.find(u => u.id === targetUserId);
+    if (!targetUser) return;
+
+    console.log(`[KICK] User ${targetUser.name} kicked from room ${roomId} (ban: ${ban})`);
+
+    // Add to banned list if requested
+    if (ban && !room.bannedUsers.includes(targetUserId)) {
+      room.bannedUsers.push(targetUserId);
+    }
+
+    // Notify the kicked user
+    io.to(targetUser.socketId).emit('kicked_from_room', { 
+      message: ban ? 'Du wurdest aus der Lobby gebannt' : 'Du wurdest aus der Lobby entfernt',
+      banned: ban
+    });
+
+    // Remove from room
+    room.users = room.users.filter(u => u.id !== targetUserId);
+
+    // Notify others
+    io.to(roomId).emit('user_left', { room, kickedUser: targetUser.name });
+  });
+
+  // Get Nearby Lobbies (for Bluetooth discovery simulation)
+  socket.on('get_nearby_lobbies', ({ nearbyId }) => {
+    // Find all lobbies that have matching nearbyId and are not private
+    const nearbyLobbies = Object.values(rooms)
+      .filter(room => 
+        room.nearbyId === nearbyId && 
+        room.gameState === 'LOBBY' &&
+        !room.settings.isPrivate &&
+        room.users.length < 10 // Max players
+      )
+      .map(room => ({
+        roomId: room.id,
+        hostName: room.users.find(u => u.isHost)?.name || 'Unbekannt',
+        playerCount: room.users.length,
+        playlistName: room.playlistName
+      }));
+
+    socket.emit('nearby_lobbies', { lobbies: nearbyLobbies });
+  });
+
+  // Set Nearby ID for lobby (Host enables Bluetooth discovery)
+  socket.on('set_nearby_id', ({ roomId, nearbyId }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+
+    const user = room.users.find(u => u.socketId === socket.id);
+    if (!user || !user.isHost) return;
+
+    room.nearbyId = nearbyId;
+    console.log(`[NEARBY] Room ${roomId} set nearbyId to: ${nearbyId}`);
+    socket.emit('nearby_id_set', { nearbyId });
+  });
+
   // Start Game
   socket.on('start_game', async ({ roomId }) => {
     const room = rooms[roomId];
@@ -487,10 +608,17 @@ io.on('connection', (socket) => {
          return;
     }
 
-    // 1. Select Imposter
+    // 1. Select Imposter(s) based on settings
     const userCount = room.users.length;
-    const imposterIndex = Math.floor(Math.random() * userCount);
-    room.imposterId = room.users[imposterIndex].id;
+    const maxImposters = userCount < 4 ? 1 : (userCount < 6 ? 2 : 3);
+    const imposterCount = Math.min(room.settings.imposterCount || 1, maxImposters);
+    
+    // Shuffle users and pick imposters
+    const shuffledUsers = [...room.users].sort(() => 0.5 - Math.random());
+    room.imposterIds = shuffledUsers.slice(0, imposterCount).map(u => u.id);
+    room.imposterId = room.imposterIds[0]; // Keep for backwards compatibility
+
+    console.log(`[GAME] Selected ${imposterCount} imposter(s):`, room.imposterIds);
 
     room.currentSongs = {
       common: commonSong,
@@ -500,25 +628,28 @@ io.on('connection', (socket) => {
     room.gameState = 'PLAYING';
     room.votes = {};
 
+    const songDuration = room.settings.songDuration || 30;
+
     // 3. Notify players
     room.users.forEach(user => {
-      const isImposter = user.id === room.imposterId;
+      const isImposter = room.imposterIds.includes(user.id);
       const songToPlay = isImposter ? imposterSong : commonSong;
       
       io.to(user.socketId).emit('game_started', {
         role: isImposter ? 'IMPOSTER' : 'INNOCENT',
         song: songToPlay,
-        duration: 30 // 30 seconds snippet
+        duration: songDuration,
+        imposterCount: imposterCount
       });
     });
 
-    // Auto-move to voting after 30 seconds
+    // Auto-move to voting after configured duration
     setTimeout(() => {
       if (rooms[roomId] && rooms[roomId].gameState === 'PLAYING') {
         rooms[roomId].gameState = 'VOTING';
         io.to(roomId).emit('voting_started');
       }
-    }, 30000);
+    }, songDuration * 1000);
   });
 
   // Submit Vote
@@ -556,8 +687,10 @@ io.on('connection', (socket) => {
       }
     }
 
-    const imposterCaught = votedOutId === room.imposterId;
-    const imposter = room.users.find(u => u.id === room.imposterId);
+    // Check if voted out user is one of the imposters
+    const imposterCaught = room.imposterIds.includes(votedOutId);
+    const imposters = room.users.filter(u => room.imposterIds.includes(u.id));
+    const imposter = imposters[0]; // For backwards compatibility
     const votedOutUser = room.users.find(u => u.id === votedOutId);
 
     room.gameState = 'RESULTS';
@@ -565,9 +698,11 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('game_over', {
       imposterCaught,
       imposter,
+      imposters, // All imposters for display
       votedOutUser,
       votes: room.votes,
-      songs: room.currentSongs
+      songs: room.currentSongs,
+      imposterCount: room.imposterIds.length
     });
 
     // Reset for next round after delay? Or let host restart.
