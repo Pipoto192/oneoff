@@ -530,14 +530,14 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('user_left', { room, kickedUser: targetUser.name });
   });
 
-  // Get Nearby Lobbies (for Bluetooth discovery simulation)
-  socket.on('get_nearby_lobbies', ({ nearbyId }) => {
-    // Find all lobbies that have matching nearbyId and are not private
+  // Get Nearby Lobbies (for discovery)
+  socket.on('get_nearby_lobbies', () => {
+    // Find all lobbies that have nearbyId set (host enabled discovery) and are in LOBBY state
     const nearbyLobbies = Object.values(rooms)
       .filter(room => 
-        room.nearbyId === nearbyId && 
+        room.nearbyId && // Has nearbyId set (host enabled discovery)
         room.gameState === 'LOBBY' &&
-        !room.settings.isPrivate &&
+        !room.settings?.isPrivate &&
         room.users.length < 10 // Max players
       )
       .map(room => ({
@@ -547,6 +547,7 @@ io.on('connection', (socket) => {
         playlistName: room.playlistName
       }));
 
+    console.log(`[NEARBY] Found ${nearbyLobbies.length} discoverable lobbies`);
     socket.emit('nearby_lobbies', { lobbies: nearbyLobbies });
   });
 
