@@ -788,7 +788,16 @@ io.on('connection', (socket) => {
     setTimeout(() => {
       if (rooms[roomId] && rooms[roomId].gameState === 'PLAYING') {
         rooms[roomId].gameState = 'VOTING';
+        rooms[roomId].votes = {}; // Reset votes
         io.to(roomId).emit('voting_started');
+        
+        // Auto-reveal results after 30 seconds voting time
+        setTimeout(() => {
+          if (rooms[roomId] && rooms[roomId].gameState === 'VOTING') {
+            console.log(`[VOTING] Time's up for room ${roomId}, revealing results`);
+            revealResults(roomId);
+          }
+        }, 30 * 1000); // 30 seconds voting time
       }
     }, songDuration * 1000);
   });
