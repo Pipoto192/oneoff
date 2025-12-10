@@ -637,9 +637,6 @@ io.on('connection', (socket) => {
 
     // 1. Select Imposter(s) based on settings
     const userCount = room.users.length;
-    
-    // Solo mode for testing: if only 1 player, they are the imposter
-    const userCount = room.users.length;
     const maxImposters = userCount < 4 ? 1 : (userCount < 6 ? 2 : 3);
     const imposterCount = Math.min(room.settings.imposterCount || 1, maxImposters);
     
