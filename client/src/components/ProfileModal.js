@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, memo } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { X, Trophy, Target, Flame, Star } from 'lucide-react';
 import { Device } from '@capacitor/device';
 import { Capacitor } from '@capacitor/core';
@@ -14,78 +14,66 @@ const ProfileModal = memo(function ProfileModal({
   const [achievements, setAchievements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('stats');
-  const [deviceId, setDeviceId] = useState(propDeviceId);
   
   // Fallback serverUrl
   const serverUrl = propServerUrl || 'https://prominent-hookworm-dailyvibes-2b2f2caa.koyeb.app';
 
-  // Get deviceId on mount if not provided
+  // Fetch everything when modal opens
   useEffect(() => {
-    const getDeviceId = async () => {
-      if (propDeviceId) {
-        setDeviceId(propDeviceId);
+    if (!isOpen) return;
+    
+    const fetchData = async () => {
+      setLoading(true);
+      
+      // Get deviceId
+      let deviceId = propDeviceId;
+      if (!deviceId) {
+        if (Capacitor.isNativePlatform()) {
+          try {
+            const info = await Device.getId();
+            deviceId = info.uuid;
+          } catch (e) {
+            // Fallback
+          }
+        }
+        if (!deviceId) {
+          deviceId = localStorage.getItem('device_uuid');
+          if (!deviceId) {
+            deviceId = 'web_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('device_uuid', deviceId);
+          }
+        }
+      }
+      
+      if (!deviceId) {
+        setLoading(false);
         return;
       }
       
-      let uuid = null;
-      if (Capacitor.isNativePlatform()) {
-        try {
-          const info = await Device.getId();
-          uuid = info.uuid;
-        } catch (e) {
-          console.error('Failed to get device ID:', e);
+      try {
+        const [profileRes, achievementsRes] = await Promise.all([
+          fetch(`${serverUrl}/api/profile?deviceId=${deviceId}`),
+          fetch(`${serverUrl}/api/achievements`)
+        ]);
+        
+        if (profileRes.ok) {
+          const data = await profileRes.json();
+          setProfile(data.profile);
         }
-      } else {
-        uuid = localStorage.getItem('device_uuid');
-        if (!uuid) {
-          uuid = 'web_' + Math.random().toString(36).substr(2, 9);
-          localStorage.setItem('device_uuid', uuid);
+        
+        if (achievementsRes.ok) {
+          const data = await achievementsRes.json();
+          setAchievements(Object.values(data.achievements || {}));
         }
+      } catch (error) {
+        // Silent fail
+      } finally {
+        setLoading(false);
       }
-      
-      setDeviceId(uuid);
     };
     
-    if (isOpen) {
-      getDeviceId();
-    }
-  }, [isOpen, propDeviceId]);
-
-  const fetchProfile = useCallback(async () => {
-    if (!deviceId) {
-      setLoading(false);
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      const [profileRes, achievementsRes] = await Promise.all([
-        fetch(`${serverUrl}/api/profile?deviceId=${deviceId}`),
-        fetch(`${serverUrl}/api/achievements`)
-      ]);
-      
-      if (profileRes.ok) {
-        const data = await profileRes.json();
-        setProfile(data.profile);
-      }
-      
-      if (achievementsRes.ok) {
-        const data = await achievementsRes.json();
-        // Convert achievements object to array
-        setAchievements(Object.values(data.achievements || {}));
-      }
-    } catch (error) {
-      // Silent fail
-    } finally {
-      setLoading(false);
-    }
-  }, [deviceId, serverUrl]);
-
-  useEffect(() => {
-    if (isOpen && deviceId) {
-      fetchProfile();
-    }
-  }, [isOpen, deviceId, fetchProfile]);
+    fetchData();
+  }, [isOpen, propDeviceId, serverUrl]);
 
   if (!isOpen) return null;
 
