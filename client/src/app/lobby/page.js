@@ -588,7 +588,14 @@ function LobbyContent() {
   const [votedForId, setVotedForId] = useState(null);
   const [votingTimeLeft, setVotingTimeLeft] = useState(30);
   const audioRef = useRef(null);
-  const gamesPlayedRef = useRef(0);
+  
+  // Persistent game counter for ads (every 2 games)
+  const gamesPlayedRef = useRef(() => {
+    if (typeof window !== 'undefined') {
+      return parseInt(localStorage.getItem('gamesPlayedCount') || '0', 10);
+    }
+    return 0;
+  })();
 
   // Settings state
   const [settings, setSettings] = useState({
@@ -796,7 +803,10 @@ function LobbyContent() {
       setRoom(prev => ({ ...prev, gameState: 'RESULTS' }));
       setGameData(prev => ({ ...prev, results }));
       
+      // Increment and save game count persistently
       gamesPlayedRef.current += 1;
+      localStorage.setItem('gamesPlayedCount', gamesPlayedRef.current.toString());
+      
       if (gamesPlayedRef.current % 2 === 0) {
         showInterstitial();
       }
