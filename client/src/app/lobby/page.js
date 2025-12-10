@@ -164,53 +164,12 @@ const GameSettingsPanel = memo(function GameSettingsPanel({
     { value: 30, label: '30s' },
   ];
 
-  const roundOptions = [
-    { value: 1, label: '1' },
-    { value: 3, label: '3' },
-    { value: 5, label: '5' },
-    { value: 10, label: '10' },
-  ];
-
   return (
     <div className="pt-5 border-t border-slate-700/50 space-y-4">
       <h3 className="text-base font-bold flex items-center gap-2">
         <Settings className="w-5 h-5 text-purple-400" />
         Spieleinstellungen
       </h3>
-      
-      {/* Total Rounds */}
-      <div className="p-4 bg-slate-800/50 rounded-xl space-y-3">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">🔁</span>
-          <span className="text-sm font-medium">Anzahl Runden</span>
-        </div>
-        <div className="flex gap-2">
-          {roundOptions.map(opt => {
-            const active = (settings.totalRounds || 1) === opt.value;
-            return (
-              <button
-                key={opt.value}
-                onClick={() => {
-                  lightImpact();
-                  onUpdateSettings({ totalRounds: opt.value });
-                }}
-                className={`flex-1 py-3 rounded-xl font-bold transition-all btn-press ${
-                  active 
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white' 
-                    : 'bg-slate-700 hover:bg-slate-600 text-white'
-                }`}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-        <p className="text-xs text-slate-500 text-center">
-          {(settings.totalRounds || 1) > 1 
-            ? `Punkte werden über ${settings.totalRounds || 1} Runden gesammelt` 
-            : 'Einzelrunde ohne Punktestand'}
-        </p>
-      </div>
       
       {/* Imposter Count */}
       <div className="p-4 bg-slate-800/50 rounded-xl space-y-3">
@@ -450,26 +409,9 @@ const ResultsView = memo(function ResultsView({ results, currentUserId }) {
   
   // Get sorted scores for leaderboard
   const sortedScores = [...(results.scores || [])].sort((a, b) => (b.score || 0) - (a.score || 0));
-  const hasMultipleRounds = results.totalRounds && results.totalRounds > 1;
-  const currentUserScore = results.roundScores?.[currentUserId] || 0;
 
   return (
     <div className="max-w-2xl mx-auto text-center space-y-6 pt-4 animate-slide-up">
-      {/* Round Info */}
-      {hasMultipleRounds && (
-        <div className="glass p-3 rounded-2xl inline-flex items-center gap-3">
-          <span className="text-lg">🔁</span>
-          <span className="font-bold">
-            Runde {results.currentRound} / {results.totalRounds}
-          </span>
-          {results.isGameComplete && (
-            <span className="bg-gradient-to-r from-yellow-500 to-orange-500 px-3 py-1 rounded-full text-sm font-bold">
-              Spiel beendet!
-            </span>
-          )}
-        </div>
-      )}
-
       <div className="mb-6">
         {results.imposterCaught ? (
           <div className="text-green-500 flex flex-col items-center gap-3">
@@ -489,21 +431,6 @@ const ResultsView = memo(function ResultsView({ results, currentUserId }) {
           </div>
         )}
       </div>
-
-      {/* Points earned this round */}
-      {results.roundScores && (
-        <div className="glass p-4 rounded-2xl bg-gradient-to-r from-purple-600/20 to-pink-600/20">
-          <div className="flex items-center justify-center gap-3">
-            <span className="text-2xl">⭐</span>
-            <div>
-              <p className="text-sm text-slate-400">Deine Punkte diese Runde</p>
-              <p className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-                +{currentUserScore}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="glass p-5 rounded-3xl space-y-5">
         <div>
@@ -812,18 +739,6 @@ function LobbyContent() {
       }
     });
 
-    socket.on('next_round', ({ currentRound, totalRounds, scores }) => {
-      // Multi-round: prepare for next round
-      showToast(`Runde ${currentRound} von ${totalRounds} - Nächste Runde!`, 'info');
-      setGameData(null);
-      setHasVoted(false);
-      setVotedForId(null);
-    });
-
-    socket.on('game_complete', ({ finalScores, winner }) => {
-      showToast(`🏆 ${winner?.name || 'Jemand'} gewinnt das Spiel!`, 'success');
-    });
-
     socket.on('return_to_lobby', ({ room }) => {
       setRoom(room);
       setGameData(null);
@@ -855,8 +770,6 @@ function LobbyContent() {
       socket.off('voting_started');
       socket.off('vote_update');
       socket.off('game_over');
-      socket.off('next_round');
-      socket.off('game_complete');
       socket.off('return_to_lobby');
       socket.off('nearby_lobbies');
       socket.off('error');

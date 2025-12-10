@@ -315,18 +315,15 @@ io.on('connection', (socket) => {
       availableTracks: null, // Will be populated from Spotify
       playlistName: null,
       showRoles: false,
-      // New settings
+      // Settings
       settings: {
         imposterCount: 1,
         songDuration: 30, // 15 or 30 seconds
         isPrivate: false,
-        totalRounds: 1, // 1, 3, 5, or 10 rounds
         fastVoteBonus: true // Bonus points for fast correct votes
       },
       bannedUsers: [], // List of banned user IDs
       nearbyId: null, // For Bluetooth nearby discovery
-      // Round tracking
-      currentRound: 0,
       voteTimes: {}, // { oderId: timestamp } for fast vote bonus
       roundStartTime: null
     };
@@ -484,17 +481,11 @@ io.on('connection', (socket) => {
     imposterCount = Math.min(imposterCount, maxImposters);
     imposterCount = Math.max(1, imposterCount);
 
-    // Validate total rounds
-    const validRounds = [1, 3, 5, 10];
-    let totalRounds = settings.totalRounds || room.settings.totalRounds || 1;
-    if (!validRounds.includes(totalRounds)) totalRounds = 1;
-
     // Update settings
     room.settings = {
       imposterCount: imposterCount,
       songDuration: settings.songDuration || room.settings.songDuration,
       isPrivate: settings.isPrivate !== undefined ? settings.isPrivate : room.settings.isPrivate,
-      totalRounds: totalRounds,
       fastVoteBonus: settings.fastVoteBonus !== undefined ? settings.fastVoteBonus : (room.settings.fastVoteBonus !== undefined ? room.settings.fastVoteBonus : true)
     };
 
@@ -590,8 +581,8 @@ io.on('connection', (socket) => {
     socket.emit('nearby_id_set', { nearbyId });
   });
 
-  // Reusable function to start a round (new game or next round)
-  const startRound = async (roomId, isFirstRound = false) => {
+  // Start Game
+  socket.on('start_game', async ({ roomId }) => {
     const room = rooms[roomId];
     if (!room) return;
 
@@ -663,17 +654,7 @@ io.on('connection', (socket) => {
     room.voteTimes = {}; // Reset vote times for fast vote bonus
     room.roundStartTime = Date.now();
 
-    // Handle round counter
-    if (isFirstRound) {
-      room.currentRound = 1;
-      // Reset all scores at start of new game
-      room.users.forEach(u => u.score = 0);
-    } else {
-      room.currentRound++;
-    }
-
     const songDuration = room.settings.songDuration || 30;
-    const totalRounds = room.settings.totalRounds || 1;
 
     // Notify players
     room.users.forEach(user => {
@@ -684,10 +665,7 @@ io.on('connection', (socket) => {
         role: isImposter ? 'IMPOSTER' : 'INNOCENT',
         song: songToPlay,
         duration: songDuration,
-        imposterCount: imposterCount,
-        currentRound: room.currentRound,
-        totalRounds: totalRounds,
-        scores: room.users.map(u => ({ id: u.id, name: u.name, score: u.score }))
+        imposterCount: imposterCount
       });
     });
 
@@ -707,19 +685,6 @@ io.on('connection', (socket) => {
         }, 30000); // 30 seconds voting time
       }
     }, songDuration * 1000);
-  };
-
-  // Start Game
-  socket.on('start_game', async ({ roomId }) => {
-    const room = rooms[roomId];
-    if (!room) return;
-
-    // Initialize round history for new game
-    room.roundHistory = [];
-    room.currentRound = 0;
-    
-    // Start the first round
-    await startRound(roomId, true);
   });
 
   // Submit Vote - with timestamp for quick voting bonus
@@ -766,88 +731,9 @@ io.on('connection', (socket) => {
     const imposter = imposters[0]; // For backwards compatibility
     const votedOutUser = room.users.find(u => u.id === votedOutId);
 
-    // Calculate points for this round
-    const roundScores = {};
-    const voteStartTime = Math.min(...Object.values(room.voteTimestamps || {}));
-    
-    room.users.forEach(user => {
-      let points = 0;
-      const votedFor = room.votes[user.id];
-      const isImposter = room.imposterIds.includes(user.id);
-      
-      if (!isImposter) {
-        // Non-imposter scoring
-        if (room.imposterIds.includes(votedFor)) {
-          // Voted correctly for an imposter
-          points += 100;
-          
-          // Bonus for catching THE imposter that got voted out
-          if (votedFor === votedOutId && imposterCaught) {
-            points += 50;
-          }
-        }
-        
-        // Quick voting bonus (first 5 seconds)
-        const voteTime = room.voteTimestamps?.[user.id];
-        if (voteTime && voteStartTime) {
-          const timeDiff = (voteTime - voteStartTime) / 1000;
-          if (timeDiff < 3) points += 30;
-          else if (timeDiff < 5) points += 20;
-          else if (timeDiff < 10) points += 10;
-        }
-      } else {
-        // Imposter scoring - points for NOT getting caught
-        if (!imposterCaught) {
-          points += 150; // Survived!
-        }
-        // Points for each vote that went to someone else
-        const votesAgainstMe = voteCounts[user.id] || 0;
-        const totalNonImposterVotes = room.users.length - room.imposterIds.length;
-        points += (totalNonImposterVotes - votesAgainstMe) * 20;
-      }
-      
-      roundScores[user.id] = points;
-      
-      // Update total score
-      const userInRoom = room.users.find(u => u.id === user.id);
-      if (userInRoom) {
-        userInRoom.score = (userInRoom.score || 0) + points;
-      }
-    });
-
-    // Store round history
-    if (!room.roundHistory) room.roundHistory = [];
-    room.roundHistory.push({
-      round: room.currentRound,
-      imposterIds: room.imposterIds,
-      votedOutId,
-      imposterCaught,
-      roundScores,
-      votes: { ...room.votes }
-    });
-
-    const totalRounds = room.totalRounds || 1;
-    const isGameComplete = room.currentRound >= totalRounds;
-
     room.gameState = 'RESULTS';
     
-    // Send round results
-    io.to(roomId).emit('round_complete', {
-      imposterCaught,
-      imposter,
-      imposters,
-      votedOutUser,
-      votes: room.votes,
-      songs: room.currentSongs,
-      imposterCount: room.imposterIds.length,
-      currentRound: room.currentRound,
-      totalRounds,
-      roundScores,
-      scores: room.users.map(u => ({ id: u.id, name: u.name, score: u.score || 0 })),
-      isGameComplete
-    });
-
-    // Also emit game_over for backwards compatibility
+    // Send game results
     io.to(roomId).emit('game_over', {
       imposterCaught,
       imposter,
@@ -855,55 +741,19 @@ io.on('connection', (socket) => {
       votedOutUser,
       votes: room.votes,
       songs: room.currentSongs,
-      imposterCount: room.imposterIds.length,
-      currentRound: room.currentRound,
-      totalRounds,
-      roundScores,
-      scores: room.users.map(u => ({ id: u.id, name: u.name, score: u.score || 0 })),
-      isGameComplete
+      imposterCount: room.imposterIds.length
     });
 
-    // Handle next round or game end
+    // Return to lobby after 10 seconds
     setTimeout(() => {
       if (!rooms[roomId]) return;
       
-      if (isGameComplete) {
-        // Game is complete - send final standings and return to lobby
-        io.to(roomId).emit('game_complete', {
-          finalScores: room.users.map(u => ({ id: u.id, name: u.name, score: u.score || 0 })),
-          roundHistory: room.roundHistory,
-          winner: room.users.reduce((a, b) => (a.score || 0) > (b.score || 0) ? a : b)
-        });
-        
-        // Reset for new game
-        room.gameState = 'LOBBY';
-        room.votes = {};
-        room.voteTimestamps = {};
-        room.imposterIds = [];
-        room.currentRound = 0;
-        room.roundHistory = [];
-        // Reset scores for new game
-        room.users.forEach(u => u.score = 0);
-        
-        io.to(roomId).emit('return_to_lobby', { room });
-      } else {
-        // More rounds to play - notify players and auto-start next round
-        room.votes = {};
-        room.voteTimestamps = {};
-        room.imposterIds = [];
-        
-        io.to(roomId).emit('next_round', {
-          currentRound: room.currentRound,
-          totalRounds,
-          scores: room.users.map(u => ({ id: u.id, name: u.name, score: u.score || 0 }))
-        });
-        
-        // Auto-start next round after 5 seconds
-        setTimeout(async () => {
-          if (!rooms[roomId]) return;
-          await startRound(roomId);
-        }, 5000);
-      }
+      room.gameState = 'LOBBY';
+      room.votes = {};
+      room.voteTimestamps = {};
+      room.imposterIds = [];
+      
+      io.to(roomId).emit('return_to_lobby', { room });
     }, 10000);
   };
 
