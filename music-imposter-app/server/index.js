@@ -590,8 +590,8 @@ io.on('connection', (socket) => {
     socket.emit('nearby_id_set', { nearbyId });
   });
 
-  // Start Game
-  socket.on('start_game', async ({ roomId }) => {
+  // Reusable function to start a round (new game or next round)
+  const startRound = async (roomId, isFirstRound = false) => {
     const room = rooms[roomId];
     if (!room) return;
 
@@ -635,7 +635,7 @@ io.on('connection', (socket) => {
          return;
     }
 
-    // 1. Select Imposter(s) based on settings
+    // Select Imposter(s) based on settings
     const userCount = room.users.length;
     const maxImposters = userCount < 4 ? 1 : (userCount < 6 ? 2 : 3);
     const imposterCount = Math.min(room.settings.imposterCount || 1, maxImposters);
@@ -663,8 +663,8 @@ io.on('connection', (socket) => {
     room.voteTimes = {}; // Reset vote times for fast vote bonus
     room.roundStartTime = Date.now();
 
-    // Increment round counter (or start at 1)
-    if (!room.currentRound || room.currentRound === 0) {
+    // Handle round counter
+    if (isFirstRound) {
       room.currentRound = 1;
       // Reset all scores at start of new game
       room.users.forEach(u => u.score = 0);
@@ -675,7 +675,7 @@ io.on('connection', (socket) => {
     const songDuration = room.settings.songDuration || 30;
     const totalRounds = room.settings.totalRounds || 1;
 
-    // 3. Notify players
+    // Notify players
     room.users.forEach(user => {
       const isImposter = room.imposterIds.includes(user.id);
       const songToPlay = isImposter ? imposterSong : commonSong;
@@ -707,6 +707,19 @@ io.on('connection', (socket) => {
         }, 30000); // 30 seconds voting time
       }
     }, songDuration * 1000);
+  };
+
+  // Start Game
+  socket.on('start_game', async ({ roomId }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+
+    // Initialize round history for new game
+    room.roundHistory = [];
+    room.currentRound = 0;
+    
+    // Start the first round
+    await startRound(roomId, true);
   });
 
   // Submit Vote - with timestamp for quick voting bonus
@@ -874,8 +887,7 @@ io.on('connection', (socket) => {
         
         io.to(roomId).emit('return_to_lobby', { room });
       } else {
-        // More rounds to play - reset for next round
-        room.gameState = 'LOBBY';
+        // More rounds to play - notify players and auto-start next round
         room.votes = {};
         room.voteTimestamps = {};
         room.imposterIds = [];
@@ -885,6 +897,12 @@ io.on('connection', (socket) => {
           totalRounds,
           scores: room.users.map(u => ({ id: u.id, name: u.name, score: u.score || 0 }))
         });
+        
+        // Auto-start next round after 5 seconds
+        setTimeout(async () => {
+          if (!rooms[roomId]) return;
+          await startRound(roomId);
+        }, 5000);
       }
     }, 10000);
   };
