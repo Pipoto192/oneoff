@@ -637,12 +637,21 @@ io.on('connection', (socket) => {
 
     // 1. Select Imposter(s) based on settings
     const userCount = room.users.length;
+    
+    // Solo mode for testing: if only 1 player, they are the imposter
+    const userCount = room.users.length;
     const maxImposters = userCount < 4 ? 1 : (userCount < 6 ? 2 : 3);
     const imposterCount = Math.min(room.settings.imposterCount || 1, maxImposters);
     
-    // Shuffle users and pick imposters
-    const shuffledUsers = [...room.users].sort(() => 0.5 - Math.random());
-    room.imposterIds = shuffledUsers.slice(0, imposterCount).map(u => u.id);
+    if (userCount === 1) {
+      // Solo mode - the single player is the imposter
+      room.imposterIds = [room.users[0].id];
+      console.log('[GAME] Solo mode enabled - single player is imposter');
+    } else {
+      // Normal mode - shuffle users and pick imposters
+      const shuffledUsers = [...room.users].sort(() => 0.5 - Math.random());
+      room.imposterIds = shuffledUsers.slice(0, imposterCount).map(u => u.id);
+    }
     room.imposterId = room.imposterIds[0]; // Keep for backwards compatibility
 
     console.log(`[GAME] Selected ${imposterCount} imposter(s):`, room.imposterIds);
@@ -689,7 +698,16 @@ io.on('connection', (socket) => {
     setTimeout(() => {
       if (rooms[roomId] && rooms[roomId].gameState === 'PLAYING') {
         rooms[roomId].gameState = 'VOTING';
+        rooms[roomId].votingStartTime = Date.now();
         io.to(roomId).emit('voting_started');
+        
+        // Auto-reveal results after 30 seconds voting time
+        setTimeout(() => {
+          if (rooms[roomId] && rooms[roomId].gameState === 'VOTING') {
+            console.log(`[VOTING] Time expired for room ${roomId}, revealing results`);
+            revealResults(roomId);
+          }
+        }, 30000); // 30 seconds voting time
       }
     }, songDuration * 1000);
   });
