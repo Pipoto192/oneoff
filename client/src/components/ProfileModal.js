@@ -1,17 +1,53 @@
 'use client';
 import { useState, useEffect, useCallback, memo } from 'react';
 import { X, Trophy, Target, Flame, Star } from 'lucide-react';
+import { Device } from '@capacitor/device';
+import { Capacitor } from '@capacitor/core';
 
 const ProfileModal = memo(function ProfileModal({ 
   isOpen, 
   onClose, 
-  deviceId, 
+  deviceId: propDeviceId, 
   serverUrl 
 }) {
   const [profile, setProfile] = useState(null);
   const [achievements, setAchievements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('stats');
+  const [deviceId, setDeviceId] = useState(propDeviceId);
+
+  // Get deviceId on mount if not provided
+  useEffect(() => {
+    const getDeviceId = async () => {
+      if (propDeviceId) {
+        setDeviceId(propDeviceId);
+        return;
+      }
+      
+      let uuid = null;
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const info = await Device.getId();
+          uuid = info.uuid;
+        } catch (e) {
+          console.error('Failed to get device ID:', e);
+        }
+      } else {
+        uuid = localStorage.getItem('device_uuid');
+        if (!uuid) {
+          uuid = 'web_' + Math.random().toString(36).substr(2, 9);
+          localStorage.setItem('device_uuid', uuid);
+        }
+      }
+      
+      console.log('[PROFILE] Got deviceId:', uuid);
+      setDeviceId(uuid);
+    };
+    
+    if (isOpen) {
+      getDeviceId();
+    }
+  }, [isOpen, propDeviceId]);
 
   const fetchProfile = useCallback(async () => {
     if (!deviceId) {
@@ -50,10 +86,10 @@ const ProfileModal = memo(function ProfileModal({
   }, [deviceId, serverUrl]);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && deviceId) {
       fetchProfile();
     }
-  }, [isOpen, fetchProfile]);
+  }, [isOpen, deviceId, fetchProfile]);
 
   if (!isOpen) return null;
 

@@ -2,13 +2,12 @@
 import { useState, useEffect, useCallback, memo } from 'react';
 import { useSocket } from '@/context/SocketContext';
 import { useRouter } from 'next/navigation';
-import { Music, Users, PlayCircle, HelpCircle, X, Gem, Sparkles, Volume2, Wifi, Loader2, BarChart3, User, Trophy } from 'lucide-react';
+import { Music, Users, PlayCircle, HelpCircle, X, Gem, Sparkles, Volume2, Wifi, Loader2, User, Trophy } from 'lucide-react';
 import { Device } from '@capacitor/device';
 import { Capacitor } from '@capacitor/core';
 import { useToast } from '@/components/Toast';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import InteractiveTutorial from '@/components/InteractiveTutorial';
-import PlayerStats from '@/components/PlayerStats';
 import ProfileModal from '@/components/ProfileModal';
 import LeaderboardModal from '@/components/LeaderboardModal';
 import useHaptics from '@/hooks/useHaptics';
@@ -189,7 +188,6 @@ function GameEntry() {
   const [roomId, setRoomId] = useState('');
   const [showTutorial, setShowTutorial] = useState(false);
   const [showInteractiveTutorial, setShowInteractiveTutorial] = useState(false);
-  const [showStats, setShowStats] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
   const [deviceId, setDeviceId] = useState(null);
@@ -416,12 +414,6 @@ function GameEntry() {
         onClose={closeTutorial} 
       />
 
-      {/* Player Stats Modal */}
-      <PlayerStats 
-        isOpen={showStats} 
-        onClose={() => setShowStats(false)} 
-      />
-
       {/* Pro Redeem Modal */}
       <ProRedeemModal 
         isOpen={showRedeemModal} 
@@ -467,25 +459,13 @@ function GameEntry() {
         </div>
       )}
 
-      {/* Stats Button */}
-      <button
-        onClick={() => {
-          lightImpact();
-          setShowStats(true);
-        }}
-        className="fixed top-4 left-4 z-40 p-3 glass rounded-full shadow-lg hover:bg-slate-700/50 transition-all btn-press group border border-purple-500/30"
-        aria-label="Statistiken"
-      >
-        <BarChart3 className="w-5 h-5 text-purple-400 group-hover:scale-110 transition-transform" />
-      </button>
-
       {/* Profile Button */}
       <button
         onClick={() => {
           lightImpact();
           setShowProfileModal(true);
         }}
-        className="fixed top-4 left-16 z-40 p-3 glass rounded-full shadow-lg hover:bg-slate-700/50 transition-all btn-press group border border-blue-500/30"
+        className="fixed top-4 left-4 z-40 p-3 glass rounded-full shadow-lg hover:bg-slate-700/50 transition-all btn-press group border border-blue-500/30"
         aria-label="Profil"
       >
         <User className="w-5 h-5 text-blue-400 group-hover:scale-110 transition-transform" />

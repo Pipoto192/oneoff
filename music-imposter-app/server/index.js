@@ -938,6 +938,7 @@ io.on('connection', (socket) => {
         }
 
         await profile.save();
+        console.log(`[STATS] Updated profile for ${user.name} (${deviceId}): gamesPlayed=${profile.stats.gamesPlayed}, gamesWon=${profile.stats.gamesWon}`);
         
         // Check for new achievements
         const newAchievements = await checkAchievements(profile);
