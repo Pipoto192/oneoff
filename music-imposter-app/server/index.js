@@ -136,10 +136,12 @@ app.get('/api/status', async (req, res) => {
 // Get or Create Player Profile
 app.get('/api/profile', async (req, res) => {
   const { deviceId } = req.query;
+  console.log('[PROFILE] Fetching profile for deviceId:', deviceId);
   if (!deviceId) return res.status(400).json({ error: 'deviceId erforderlich' });
 
   try {
     let profile = await PlayerProfile.findOne({ deviceId });
+    console.log('[PROFILE] Found profile:', profile ? 'Yes' : 'No', 'Stats:', profile?.stats);
     if (!profile) {
       return res.json({ profile: null });
     }

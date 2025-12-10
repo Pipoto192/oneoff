@@ -286,7 +286,19 @@ function GameEntry() {
     lightImpact();
   }, [lightImpact]);
 
-  const createRoom = useCallback(() => {
+  // Helper to get deviceId synchronously from storage
+  const getDeviceIdSync = useCallback(() => {
+    if (deviceId) return deviceId;
+    // Fallback to localStorage
+    let uuid = localStorage.getItem('device_uuid');
+    if (!uuid) {
+      uuid = 'web_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('device_uuid', uuid);
+    }
+    return uuid;
+  }, [deviceId]);
+
+  const createRoom = useCallback(async () => {
     if (!username.trim()) {
       error();
       showToast('Bitte gib einen Benutzernamen ein', 'error');
@@ -301,11 +313,28 @@ function GameEntry() {
     setIsCreating(true);
     lightImpact();
     
+    // Get deviceId - try native first, then storage
+    let currentDeviceId = deviceId;
+    if (!currentDeviceId) {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const info = await Device.getId();
+          currentDeviceId = info.uuid;
+        } catch (e) {
+          console.error('Failed to get device ID:', e);
+        }
+      }
+      if (!currentDeviceId) {
+        currentDeviceId = getDeviceIdSync();
+      }
+    }
+    
     const userId = localStorage.getItem('userId') || 'user_' + Math.random().toString(36).substr(2, 9);
     localStorage.setItem('userId', userId);
     localStorage.setItem('username', username.trim());
 
-    socket.emit('create_room', { username: username.trim(), userId, deviceId });
+    console.log('[CREATE_ROOM] Sending with deviceId:', currentDeviceId);
+    socket.emit('create_room', { username: username.trim(), userId, deviceId: currentDeviceId });
     socket.once('room_created', ({ roomId, userId }) => {
       localStorage.setItem('userId', userId);
       success();
@@ -314,9 +343,9 @@ function GameEntry() {
 
     // Timeout fallback
     setTimeout(() => setIsCreating(false), 5000);
-  }, [username, socket, router, showToast, lightImpact, success, error]);
+  }, [username, socket, router, showToast, lightImpact, success, error, deviceId, getDeviceIdSync]);
 
-  const joinRoom = useCallback(() => {
+  const joinRoom = useCallback(async () => {
     if (!username.trim() || !roomId.trim()) {
       error();
       showToast('Bitte gib Benutzername und Raum-ID ein', 'error');
@@ -331,11 +360,28 @@ function GameEntry() {
     setIsJoining(true);
     lightImpact();
 
+    // Get deviceId - try native first, then storage
+    let currentDeviceId = deviceId;
+    if (!currentDeviceId) {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const info = await Device.getId();
+          currentDeviceId = info.uuid;
+        } catch (e) {
+          console.error('Failed to get device ID:', e);
+        }
+      }
+      if (!currentDeviceId) {
+        currentDeviceId = getDeviceIdSync();
+      }
+    }
+
     const userId = localStorage.getItem('userId') || 'user_' + Math.random().toString(36).substr(2, 9);
     localStorage.setItem('userId', userId);
     localStorage.setItem('username', username.trim());
 
-    socket.emit('join_room', { roomId: roomId.trim().toUpperCase(), username: username.trim(), userId, deviceId });
+    console.log('[JOIN_ROOM] Sending with deviceId:', currentDeviceId);
+    socket.emit('join_room', { roomId: roomId.trim().toUpperCase(), username: username.trim(), userId, deviceId: currentDeviceId });
     
     socket.once('joined_room', ({ roomId, userId }) => {
       localStorage.setItem('userId', userId);
@@ -351,7 +397,7 @@ function GameEntry() {
 
     // Timeout fallback
     setTimeout(() => setIsJoining(false), 5000);
-  }, [username, roomId, socket, router, showToast, lightImpact, success, error]);
+  }, [username, roomId, socket, router, showToast, lightImpact, success, error, deviceId, getDeviceIdSync]);
 
   return (
     <main className="flex min-h-[100dvh] flex-col items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 overflow-hidden safe-area-top safe-area-bottom">
