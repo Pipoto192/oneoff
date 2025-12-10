@@ -605,7 +605,7 @@ function GameEntry() {
         </div>
 
         {/* Version info */}
-        <p className="text-center text-slate-600 text-xs pt-2">v2.0 • Made with ❤️</p>
+        <p className="text-center text-slate-600 text-xs pt-2">0.4 gemacht von Anntimo</p>
       </div>
     </main>
   );
