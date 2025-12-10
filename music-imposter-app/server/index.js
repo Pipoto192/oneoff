@@ -318,11 +318,17 @@ io.on('connection', (socket) => {
       // New settings
       settings: {
         imposterCount: 1,
-        songDuration: 30, // 15, 30, 45, 60 seconds
-        isPrivate: false
+        songDuration: 30, // 15 or 30 seconds
+        isPrivate: false,
+        totalRounds: 1, // 1, 3, 5, or 10 rounds
+        fastVoteBonus: true // Bonus points for fast correct votes
       },
       bannedUsers: [], // List of banned user IDs
-      nearbyId: null // For Bluetooth nearby discovery
+      nearbyId: null, // For Bluetooth nearby discovery
+      // Round tracking
+      currentRound: 0,
+      voteTimes: {}, // { oderId: timestamp } for fast vote bonus
+      roundStartTime: null
     };
 
     socket.join(roomId);
@@ -478,11 +484,18 @@ io.on('connection', (socket) => {
     imposterCount = Math.min(imposterCount, maxImposters);
     imposterCount = Math.max(1, imposterCount);
 
+    // Validate total rounds
+    const validRounds = [1, 3, 5, 10];
+    let totalRounds = settings.totalRounds || room.settings.totalRounds || 1;
+    if (!validRounds.includes(totalRounds)) totalRounds = 1;
+
     // Update settings
     room.settings = {
       imposterCount: imposterCount,
       songDuration: settings.songDuration || room.settings.songDuration,
-      isPrivate: settings.isPrivate !== undefined ? settings.isPrivate : room.settings.isPrivate
+      isPrivate: settings.isPrivate !== undefined ? settings.isPrivate : room.settings.isPrivate,
+      totalRounds: totalRounds,
+      fastVoteBonus: settings.fastVoteBonus !== undefined ? settings.fastVoteBonus : (room.settings.fastVoteBonus !== undefined ? room.settings.fastVoteBonus : true)
     };
 
     console.log(`[SETTINGS] Room ${roomId} settings updated:`, room.settings);
@@ -641,8 +654,20 @@ io.on('connection', (socket) => {
 
     room.gameState = 'PLAYING';
     room.votes = {};
+    room.voteTimes = {}; // Reset vote times for fast vote bonus
+    room.roundStartTime = Date.now();
+
+    // Increment round counter (or start at 1)
+    if (!room.currentRound || room.currentRound === 0) {
+      room.currentRound = 1;
+      // Reset all scores at start of new game
+      room.users.forEach(u => u.score = 0);
+    } else {
+      room.currentRound++;
+    }
 
     const songDuration = room.settings.songDuration || 30;
+    const totalRounds = room.settings.totalRounds || 1;
 
     // 3. Notify players
     room.users.forEach(user => {
@@ -653,7 +678,10 @@ io.on('connection', (socket) => {
         role: isImposter ? 'IMPOSTER' : 'INNOCENT',
         song: songToPlay,
         duration: songDuration,
-        imposterCount: imposterCount
+        imposterCount: imposterCount,
+        currentRound: room.currentRound,
+        totalRounds: totalRounds,
+        scores: room.users.map(u => ({ id: u.id, name: u.name, score: u.score }))
       });
     });
 
@@ -666,12 +694,15 @@ io.on('connection', (socket) => {
     }, songDuration * 1000);
   });
 
-  // Submit Vote
+  // Submit Vote - with timestamp for quick voting bonus
   socket.on('vote', ({ roomId, voterId, suspectId }) => {
     const room = rooms[roomId];
     if (!room || room.gameState !== 'VOTING') return;
 
+    // Record vote with timestamp for quick voting bonus
     room.votes[voterId] = suspectId;
+    if (!room.voteTimestamps) room.voteTimestamps = {};
+    room.voteTimestamps[voterId] = Date.now();
 
     // Check if everyone voted
     if (Object.keys(room.votes).length === room.users.length) {
@@ -707,24 +738,139 @@ io.on('connection', (socket) => {
     const imposter = imposters[0]; // For backwards compatibility
     const votedOutUser = room.users.find(u => u.id === votedOutId);
 
+    // Calculate points for this round
+    const roundScores = {};
+    const voteStartTime = Math.min(...Object.values(room.voteTimestamps || {}));
+    
+    room.users.forEach(user => {
+      let points = 0;
+      const votedFor = room.votes[user.id];
+      const isImposter = room.imposterIds.includes(user.id);
+      
+      if (!isImposter) {
+        // Non-imposter scoring
+        if (room.imposterIds.includes(votedFor)) {
+          // Voted correctly for an imposter
+          points += 100;
+          
+          // Bonus for catching THE imposter that got voted out
+          if (votedFor === votedOutId && imposterCaught) {
+            points += 50;
+          }
+        }
+        
+        // Quick voting bonus (first 5 seconds)
+        const voteTime = room.voteTimestamps?.[user.id];
+        if (voteTime && voteStartTime) {
+          const timeDiff = (voteTime - voteStartTime) / 1000;
+          if (timeDiff < 3) points += 30;
+          else if (timeDiff < 5) points += 20;
+          else if (timeDiff < 10) points += 10;
+        }
+      } else {
+        // Imposter scoring - points for NOT getting caught
+        if (!imposterCaught) {
+          points += 150; // Survived!
+        }
+        // Points for each vote that went to someone else
+        const votesAgainstMe = voteCounts[user.id] || 0;
+        const totalNonImposterVotes = room.users.length - room.imposterIds.length;
+        points += (totalNonImposterVotes - votesAgainstMe) * 20;
+      }
+      
+      roundScores[user.id] = points;
+      
+      // Update total score
+      const userInRoom = room.users.find(u => u.id === user.id);
+      if (userInRoom) {
+        userInRoom.score = (userInRoom.score || 0) + points;
+      }
+    });
+
+    // Store round history
+    if (!room.roundHistory) room.roundHistory = [];
+    room.roundHistory.push({
+      round: room.currentRound,
+      imposterIds: room.imposterIds,
+      votedOutId,
+      imposterCaught,
+      roundScores,
+      votes: { ...room.votes }
+    });
+
+    const totalRounds = room.totalRounds || 1;
+    const isGameComplete = room.currentRound >= totalRounds;
+
     room.gameState = 'RESULTS';
     
-    io.to(roomId).emit('game_over', {
+    // Send round results
+    io.to(roomId).emit('round_complete', {
       imposterCaught,
       imposter,
-      imposters, // All imposters for display
+      imposters,
       votedOutUser,
       votes: room.votes,
       songs: room.currentSongs,
-      imposterCount: room.imposterIds.length
+      imposterCount: room.imposterIds.length,
+      currentRound: room.currentRound,
+      totalRounds,
+      roundScores,
+      scores: room.users.map(u => ({ id: u.id, name: u.name, score: u.score || 0 })),
+      isGameComplete
     });
 
-    // Reset for next round after delay? Or let host restart.
+    // Also emit game_over for backwards compatibility
+    io.to(roomId).emit('game_over', {
+      imposterCaught,
+      imposter,
+      imposters,
+      votedOutUser,
+      votes: room.votes,
+      songs: room.currentSongs,
+      imposterCount: room.imposterIds.length,
+      currentRound: room.currentRound,
+      totalRounds,
+      roundScores,
+      scores: room.users.map(u => ({ id: u.id, name: u.name, score: u.score || 0 })),
+      isGameComplete
+    });
+
+    // Handle next round or game end
     setTimeout(() => {
+      if (!rooms[roomId]) return;
+      
+      if (isGameComplete) {
+        // Game is complete - send final standings and return to lobby
+        io.to(roomId).emit('game_complete', {
+          finalScores: room.users.map(u => ({ id: u.id, name: u.name, score: u.score || 0 })),
+          roundHistory: room.roundHistory,
+          winner: room.users.reduce((a, b) => (a.score || 0) > (b.score || 0) ? a : b)
+        });
+        
+        // Reset for new game
         room.gameState = 'LOBBY';
         room.votes = {};
-        room.imposterId = null;
+        room.voteTimestamps = {};
+        room.imposterIds = [];
+        room.currentRound = 0;
+        room.roundHistory = [];
+        // Reset scores for new game
+        room.users.forEach(u => u.score = 0);
+        
         io.to(roomId).emit('return_to_lobby', { room });
+      } else {
+        // More rounds to play - reset for next round
+        room.gameState = 'LOBBY';
+        room.votes = {};
+        room.voteTimestamps = {};
+        room.imposterIds = [];
+        
+        io.to(roomId).emit('next_round', {
+          currentRound: room.currentRound,
+          totalRounds,
+          scores: room.users.map(u => ({ id: u.id, name: u.name, score: u.score || 0 }))
+        });
+      }
     }, 10000);
   };
 
