@@ -14,7 +14,6 @@ import CountdownTimer from '@/components/CountdownTimer';
 import PlayerCard from '@/components/PlayerCard';
 import ShareResult from '@/components/ShareResult';
 import SavedPlaylists from '@/components/SavedPlaylists';
-import SuggestedPlaylists from '@/components/SuggestedPlaylists';
 import useHaptics from '@/hooks/useHaptics';
 
 // Header Component
@@ -1059,10 +1058,9 @@ function LobbyContent() {
                 onToggleRoles={toggleShowRoles}
               />
 
-              {/* Saved & Suggested Playlists */}
-              <div className="pt-4 border-t border-slate-700/50 space-y-4">
+              {/* Saved Playlists / Favorites */}
+              <div className="pt-4 border-t border-slate-700/50">
                 <SavedPlaylists onSelectPlaylist={(id) => handlePlaylistSelect(id, 'Favorit')} />
-                <SuggestedPlaylists onSelectPlaylist={(id, name) => handlePlaylistSelect(id, name)} />
               </div>
 
               {/* Nearby Discovery Toggle */}
@@ -1143,12 +1141,10 @@ function LobbyContent() {
           {currentUser?.isHost ? (
             <button 
               onClick={startGame}
-              disabled={room.users.length < 2}
-              className="w-full py-5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 disabled:from-slate-600 disabled:to-slate-700 rounded-2xl font-bold text-xl shadow-lg transition-all btn-press flex items-center justify-center gap-3 animate-slide-up stagger-2 disabled:opacity-70"
+              className="w-full py-5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 rounded-2xl font-bold text-xl shadow-lg transition-all btn-press flex items-center justify-center gap-3 animate-slide-up stagger-2"
             >
               <Play className="w-6 h-6" /> 
               Spiel starten
-              {room.users.length < 2 && <span className="text-sm font-normal">(min. 2 Spieler)</span>}
             </button>
           ) : (
             <div className="text-center text-slate-400 py-4 flex items-center justify-center gap-2">
