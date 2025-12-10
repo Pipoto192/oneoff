@@ -590,12 +590,15 @@ function LobbyContent() {
   const audioRef = useRef(null);
   
   // Persistent game counter for ads (every 2 games)
-  const gamesPlayedRef = useRef(() => {
-    if (typeof window !== 'undefined') {
-      return parseInt(localStorage.getItem('gamesPlayedCount') || '0', 10);
+  const gamesPlayedRef = useRef(0);
+  
+  // Load games count from localStorage on mount
+  useEffect(() => {
+    const savedCount = localStorage.getItem('gamesPlayedCount');
+    if (savedCount) {
+      gamesPlayedRef.current = parseInt(savedCount, 10);
     }
-    return 0;
-  })();
+  }, []);
 
   // Settings state
   const [settings, setSettings] = useState({
