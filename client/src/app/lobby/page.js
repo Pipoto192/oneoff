@@ -588,17 +588,6 @@ function LobbyContent() {
   const [votedForId, setVotedForId] = useState(null);
   const [votingTimeLeft, setVotingTimeLeft] = useState(30);
   const audioRef = useRef(null);
-  
-  // Persistent game counter for ads (every 2 games)
-  const gamesPlayedRef = useRef(0);
-  
-  // Load games count from localStorage on mount
-  useEffect(() => {
-    const savedCount = localStorage.getItem('gamesPlayedCount');
-    if (savedCount) {
-      gamesPlayedRef.current = parseInt(savedCount, 10);
-    }
-  }, []);
 
   // Settings state
   const [settings, setSettings] = useState({
@@ -806,11 +795,12 @@ function LobbyContent() {
       setRoom(prev => ({ ...prev, gameState: 'RESULTS' }));
       setGameData(prev => ({ ...prev, results }));
       
-      // Increment and save game count persistently
-      gamesPlayedRef.current += 1;
-      localStorage.setItem('gamesPlayedCount', gamesPlayedRef.current.toString());
+      // Increment and save game count persistently - read fresh from localStorage
+      const currentCount = parseInt(localStorage.getItem('gamesPlayedCount') || '0', 10);
+      const newCount = currentCount + 1;
+      localStorage.setItem('gamesPlayedCount', newCount.toString());
       
-      if (gamesPlayedRef.current % 2 === 0) {
+      if (newCount % 2 === 0) {
         showInterstitial();
       }
     });
