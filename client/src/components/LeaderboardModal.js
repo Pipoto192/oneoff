@@ -5,15 +5,19 @@ import { X, Trophy, ChevronUp, ChevronDown } from 'lucide-react';
 const LeaderboardModal = memo(function LeaderboardModal({ 
   isOpen, 
   onClose, 
-  serverUrl,
+  serverUrl: propServerUrl,
   currentDeviceId 
 }) {
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('points');
   const [sortOrder, setSortOrder] = useState('desc');
+  
+  // Fallback serverUrl
+  const serverUrl = propServerUrl || 'https://prominent-hookworm-dailyvibes-2b2f2caa.koyeb.app';
 
   const fetchLeaderboard = useCallback(async () => {
+    console.log('[LEADERBOARD] Fetching from:', serverUrl);
     try {
       setLoading(true);
       const res = await fetch(
@@ -21,7 +25,17 @@ const LeaderboardModal = memo(function LeaderboardModal({
       );
       if (res.ok) {
         const data = await res.json();
-        setPlayers(data.leaderboard || []);
+        console.log('[LEADERBOARD] Received players:', data.leaderboard?.length);
+        // Filter duplicates by deviceId (shouldn't happen but just in case)
+        const uniquePlayers = [];
+        const seenDeviceIds = new Set();
+        for (const player of (data.leaderboard || [])) {
+          if (!seenDeviceIds.has(player.deviceId)) {
+            seenDeviceIds.add(player.deviceId);
+            uniquePlayers.push(player);
+          }
+        }
+        setPlayers(uniquePlayers);
       }
     } catch (error) {
       console.error('Error fetching leaderboard:', error);

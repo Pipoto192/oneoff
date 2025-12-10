@@ -874,6 +874,13 @@ io.on('connection', (socket) => {
             username: user.name,
             stats: {}
           });
+          console.log(`[STATS] Created new profile for ${user.name} (${deviceId})`);
+        } else {
+          // Update username if changed
+          if (profile.username !== user.name) {
+            console.log(`[STATS] Updating username from ${profile.username} to ${user.name}`);
+            profile.username = user.name;
+          }
         }
 
         const isImposter = room.imposterIds.includes(user.id);

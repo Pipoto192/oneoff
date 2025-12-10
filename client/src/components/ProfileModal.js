@@ -8,13 +8,16 @@ const ProfileModal = memo(function ProfileModal({
   isOpen, 
   onClose, 
   deviceId: propDeviceId, 
-  serverUrl 
+  serverUrl: propServerUrl 
 }) {
   const [profile, setProfile] = useState(null);
   const [achievements, setAchievements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('stats');
   const [deviceId, setDeviceId] = useState(propDeviceId);
+  
+  // Fallback serverUrl
+  const serverUrl = propServerUrl || 'https://prominent-hookworm-dailyvibes-2b2f2caa.koyeb.app';
 
   // Get deviceId on mount if not provided
   useEffect(() => {

@@ -477,7 +477,7 @@ function GameEntry() {
           lightImpact();
           setShowLeaderboardModal(true);
         }}
-        className="fixed top-4 left-28 z-40 p-3 glass rounded-full shadow-lg hover:bg-slate-700/50 transition-all btn-press group border border-green-500/30"
+        className="fixed top-4 left-16 z-40 p-3 glass rounded-full shadow-lg hover:bg-slate-700/50 transition-all btn-press group border border-green-500/30"
         aria-label="Rangliste"
       >
         <Trophy className="w-5 h-5 text-green-400 group-hover:scale-110 transition-transform" />
