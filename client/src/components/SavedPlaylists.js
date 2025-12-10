@@ -141,7 +141,7 @@ const PlaylistItem = memo(function PlaylistItem({
       <button
         onClick={() => {
           lightImpact();
-          onSelect(playlist.id, playlist.name);
+          onSelect(playlist.id, playlist.name, playlist.image, playlist.owner);
         }}
         className="flex-1 flex items-center gap-3 text-left"
       >

@@ -13,7 +13,7 @@ import MusicWave from '@/components/MusicWave';
 import CountdownTimer from '@/components/CountdownTimer';
 import PlayerCard from '@/components/PlayerCard';
 import ShareResult from '@/components/ShareResult';
-import SavedPlaylists from '@/components/SavedPlaylists';
+import SavedPlaylists, { useSavedPlaylists } from '@/components/SavedPlaylists';
 import useHaptics from '@/hooks/useHaptics';
 
 // Header Component
@@ -96,7 +96,7 @@ const PlaylistSearch = memo(function PlaylistSearch({
               return (
                 <button
                   key={pl.id}
-                  onClick={() => onSelect(pl.id, pl.name)}
+                  onClick={() => onSelect(pl.id, pl.name, pl.images?.[0]?.url, pl.owner?.display_name)}
                   className="p-3 rounded-xl text-left text-sm glass hover:bg-slate-700/80 flex items-center gap-3 transition-all card-interactive"
                 >
                   {pl.images?.[0]?.url ? (
@@ -551,6 +551,9 @@ function LobbyContent() {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  // Saved Playlists Hook
+  const { addRecent } = useSavedPlaylists();
+
   // Nearby Lobbies State
   const [nearbyLobbies, setNearbyLobbies] = useState([]);
   const [isNearbyEnabled, setIsNearbyEnabled] = useState(false);
@@ -811,7 +814,7 @@ function LobbyContent() {
     }
   }, [searchQuery, getServerUrl, showToast]);
 
-  const handlePlaylistSelect = useCallback((playlistId, playlistName) => {
+  const handlePlaylistSelect = useCallback((playlistId, playlistName, playlistImage = null, playlistOwner = null) => {
     setSelectedPlaylist(playlistId);
     setSearchResults([]);
     setSearchQuery('');
@@ -821,8 +824,17 @@ function LobbyContent() {
       accessToken: spotifyToken,
       playlistName 
     });
+    
+    // Save to recent playlists
+    addRecent({
+      id: playlistId,
+      name: playlistName,
+      image: playlistImage,
+      owner: playlistOwner
+    });
+    
     lightImpact();
-  }, [socket, roomId, spotifyToken, lightImpact]);
+  }, [socket, roomId, spotifyToken, lightImpact, addRecent]);
 
   const handleLoadLink = useCallback(() => {
     if (!playlistLink) return;
@@ -973,7 +985,7 @@ function LobbyContent() {
 
               {/* Saved Playlists / Favorites */}
               <div className="pt-4 border-t border-slate-700/50">
-                <SavedPlaylists onSelectPlaylist={(id) => handlePlaylistSelect(id, 'Favorit')} />
+                <SavedPlaylists onSelect={handlePlaylistSelect} />
               </div>
 
               {/* Nearby Discovery Toggle */}
