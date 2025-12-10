@@ -12,3 +12,8 @@ export { default as PlayerStats } from './PlayerStats';
 export { default as ShareResult } from './ShareResult';
 export { default as SavedPlaylists } from './SavedPlaylists';
 export { default as SuggestedPlaylists } from './SuggestedPlaylists';
+
+// Profile, Leaderboard & Animation components
+export { default as Confetti, AchievementPopup, VictoryAnimation } from './Confetti';
+export { default as ProfileModal } from './ProfileModal';
+export { default as LeaderboardModal } from './LeaderboardModal';

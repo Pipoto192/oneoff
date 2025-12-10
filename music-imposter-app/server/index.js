@@ -11,7 +11,7 @@ const axios = require('axios');
 const querystring = require('querystring');
 const cookieParser = require('cookie-parser');
 const mongoose = require('mongoose');
-const { Code, Subscription } = require('./models');
+const { Code, Subscription, PlayerProfile, ACHIEVEMENTS } = require('./models');
 
 const app = express();
 app.use(cors());
@@ -130,6 +130,131 @@ app.get('/api/status', async (req, res) => {
     res.json({ isPro: false });
   }
 });
+
+// ============ PROFILE & STATS API ============
+
+// Get or Create Player Profile
+app.get('/api/profile', async (req, res) => {
+  const { deviceId } = req.query;
+  if (!deviceId) return res.status(400).json({ error: 'deviceId erforderlich' });
+
+  try {
+    let profile = await PlayerProfile.findOne({ deviceId });
+    if (!profile) {
+      return res.json({ profile: null });
+    }
+    res.json({ profile, achievements: ACHIEVEMENTS });
+  } catch (error) {
+    console.error('Profile Error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Create or Update Profile
+app.post('/api/profile', async (req, res) => {
+  const { deviceId, username } = req.body;
+  if (!deviceId || !username) {
+    return res.status(400).json({ error: 'deviceId und username erforderlich' });
+  }
+
+  try {
+    let profile = await PlayerProfile.findOneAndUpdate(
+      { deviceId },
+      { 
+        deviceId,
+        username,
+        lastPlayed: new Date()
+      },
+      { upsert: true, new: true }
+    );
+    res.json({ success: true, profile });
+  } catch (error) {
+    console.error('Profile Create Error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Get Leaderboard
+app.get('/api/leaderboard', async (req, res) => {
+  const { type = 'points', limit = 50 } = req.query;
+
+  try {
+    let sortField = 'stats.totalPoints';
+    if (type === 'wins') sortField = 'stats.gamesWon';
+    if (type === 'games') sortField = 'stats.gamesPlayed';
+    if (type === 'streak') sortField = 'stats.bestWinStreak';
+
+    const leaderboard = await PlayerProfile.find({})
+      .select('username stats.totalPoints stats.gamesWon stats.gamesPlayed stats.bestWinStreak avatar deviceId')
+      .sort({ [sortField]: -1 })
+      .limit(parseInt(limit));
+
+    res.json({ leaderboard, type });
+  } catch (error) {
+    console.error('Leaderboard Error:', error);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Get all Achievements definitions
+app.get('/api/achievements', (req, res) => {
+  res.json({ achievements: ACHIEVEMENTS });
+});
+
+// Helper function to check and unlock achievements
+async function checkAchievements(profile) {
+  const newAchievements = [];
+  const stats = profile.stats;
+  const unlockedIds = profile.achievements.map(a => a.id);
+
+  const checkAndUnlock = (conditionMet, achievementId) => {
+    if (conditionMet && !unlockedIds.includes(achievementId)) {
+      newAchievements.push({ id: achievementId, unlockedAt: new Date() });
+    }
+  };
+
+  // Game milestones
+  checkAndUnlock(stats.gamesPlayed >= 1, 'FIRST_GAME');
+  checkAndUnlock(stats.gamesPlayed >= 10, 'GAMES_10');
+  checkAndUnlock(stats.gamesPlayed >= 50, 'GAMES_50');
+  checkAndUnlock(stats.gamesPlayed >= 100, 'GAMES_100');
+
+  // Win achievements
+  checkAndUnlock(stats.gamesWon >= 1, 'FIRST_WIN');
+  checkAndUnlock(stats.gamesWon >= 10, 'WINS_10');
+  checkAndUnlock(stats.gamesWon >= 25, 'WINS_25');
+  checkAndUnlock(stats.gamesWon >= 50, 'WINS_50');
+
+  // Imposter achievements
+  checkAndUnlock(stats.timesImposterWon >= 1, 'IMPOSTER_FIRST');
+  checkAndUnlock(stats.timesImposterWon >= 5, 'IMPOSTER_5');
+  checkAndUnlock(stats.timesImposterWon >= 15, 'IMPOSTER_15');
+
+  // Detective achievements
+  checkAndUnlock(stats.correctVotes >= 1, 'DETECTIVE_FIRST');
+  checkAndUnlock(stats.correctVotes >= 10, 'DETECTIVE_10');
+  checkAndUnlock(stats.correctVotes >= 25, 'DETECTIVE_25');
+
+  // Streak achievements
+  checkAndUnlock(stats.bestWinStreak >= 3, 'STREAK_3');
+  checkAndUnlock(stats.bestWinStreak >= 5, 'STREAK_5');
+  checkAndUnlock(stats.bestWinStreak >= 10, 'STREAK_10');
+
+  if (newAchievements.length > 0) {
+    profile.achievements.push(...newAchievements);
+    // Add points for new achievements
+    for (const ach of newAchievements) {
+      if (ACHIEVEMENTS[ach.id]) {
+        profile.stats.totalPoints += ACHIEVEMENTS[ach.id].points;
+      }
+    }
+    await profile.save();
+  }
+
+  return newAchievements;
+}
+
+// ============ END PROFILE & STATS API ============
 
 // Spotify Auth Routes
 app.get('/api/search', async (req, res) => {
@@ -681,7 +806,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  const revealResults = (roomId) => {
+  const revealResults = async (roomId) => {
     const room = rooms[roomId];
     if (!room) return;
 
@@ -707,6 +832,109 @@ io.on('connection', (socket) => {
     const imposter = imposters[0]; // For backwards compatibility
     const votedOutUser = room.users.find(u => u.id === votedOutId);
 
+    // Check for perfect game (all voted for imposter)
+    const totalVoters = Object.keys(room.votes).length;
+    const isPerfectGame = imposterCaught && maxVotes === totalVoters;
+    
+    // Check for close call (1 vote difference)
+    const voteValues = Object.values(voteCounts);
+    const sortedVotes = voteValues.sort((a, b) => b - a);
+    const isCloseCall = sortedVotes.length > 1 && (sortedVotes[0] - sortedVotes[1]) === 1;
+
+    // ============ UPDATE PLAYER STATS ============
+    const newAchievementsMap = {}; // deviceId -> [achievements]
+    
+    try {
+      for (const user of room.users) {
+        const deviceId = user.id; // Using the stored ID
+        let profile = await PlayerProfile.findOne({ deviceId });
+        
+        if (!profile) {
+          // Create profile if doesn't exist
+          profile = new PlayerProfile({
+            deviceId,
+            username: user.name,
+            stats: {}
+          });
+        }
+
+        const isImposter = room.imposterIds.includes(user.id);
+        const votedCorrectly = room.votes[user.id] && room.imposterIds.includes(room.votes[user.id]);
+        
+        // Update basic stats
+        profile.stats.gamesPlayed += 1;
+        profile.stats.totalVotes += 1;
+        profile.lastPlayed = new Date();
+        
+        if (isImposter) {
+          profile.stats.timesImposter += 1;
+        } else {
+          profile.stats.timesInnocent += 1;
+        }
+
+        // Determine if this player won
+        let playerWon = false;
+        if (isImposter && !imposterCaught) {
+          // Imposter won (not caught)
+          playerWon = true;
+          profile.stats.timesImposterWon += 1;
+        } else if (!isImposter && imposterCaught) {
+          // Innocent won (imposter caught)
+          playerWon = true;
+          profile.stats.timesInnocentWon += 1;
+        }
+
+        if (playerWon) {
+          profile.stats.gamesWon += 1;
+          profile.stats.winStreak += 1;
+          profile.stats.totalPoints += 10; // 10 points per win
+          
+          if (profile.stats.winStreak > profile.stats.bestWinStreak) {
+            profile.stats.bestWinStreak = profile.stats.winStreak;
+          }
+        } else {
+          profile.stats.winStreak = 0;
+        }
+
+        // Check if voted correctly (for non-imposters)
+        if (!isImposter && votedCorrectly) {
+          profile.stats.correctVotes += 1;
+          profile.stats.totalPoints += 5; // 5 bonus points for correct vote
+        }
+
+        // Special achievements
+        if (isPerfectGame && !isImposter && imposterCaught) {
+          // Check PERFECT_GAME achievement
+          if (!profile.achievements.find(a => a.id === 'PERFECT_GAME')) {
+            profile.achievements.push({ id: 'PERFECT_GAME', unlockedAt: new Date() });
+            profile.stats.totalPoints += ACHIEVEMENTS.PERFECT_GAME.points;
+          }
+        }
+
+        if (isCloseCall && playerWon) {
+          // Check CLOSE_CALL achievement
+          if (!profile.achievements.find(a => a.id === 'CLOSE_CALL')) {
+            profile.achievements.push({ id: 'CLOSE_CALL', unlockedAt: new Date() });
+            profile.stats.totalPoints += ACHIEVEMENTS.CLOSE_CALL.points;
+          }
+        }
+
+        await profile.save();
+        
+        // Check for new achievements
+        const newAchievements = await checkAchievements(profile);
+        if (newAchievements.length > 0) {
+          newAchievementsMap[user.id] = newAchievements.map(a => ({
+            ...ACHIEVEMENTS[a.id],
+            unlockedAt: a.unlockedAt
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('[STATS] Error updating player stats:', error);
+    }
+    // ============ END UPDATE PLAYER STATS ============
+
     room.gameState = 'RESULTS';
     
     io.to(roomId).emit('game_over', {
@@ -716,7 +944,10 @@ io.on('connection', (socket) => {
       votedOutUser,
       votes: room.votes,
       songs: room.currentSongs,
-      imposterCount: room.imposterIds.length
+      imposterCount: room.imposterIds.length,
+      isPerfectGame,
+      isCloseCall,
+      newAchievements: newAchievementsMap
     });
 
     // Reset for next round after delay? Or let host restart.

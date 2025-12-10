@@ -14,6 +14,7 @@ import CountdownTimer from '@/components/CountdownTimer';
 import PlayerCard from '@/components/PlayerCard';
 import ShareResult from '@/components/ShareResult';
 import SavedPlaylists, { useSavedPlaylists } from '@/components/SavedPlaylists';
+import Confetti, { AchievementPopup, VictoryAnimation } from '@/components/Confetti';
 import useHaptics from '@/hooks/useHaptics';
 
 // Header Component
@@ -395,6 +396,17 @@ const NearbyLobbies = memo(function NearbyLobbies({ lobbies, onJoin, isScanning 
 // Results View Component
 const ResultsView = memo(function ResultsView({ results, currentUserId }) {
   const { success, error: errorHaptic } = useHaptics();
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [showVictoryAnim, setShowVictoryAnim] = useState(false);
+  const [newAchievement, setNewAchievement] = useState(null);
+  
+  // Determine if current user is a winner
+  const imposters = (results?.imposters || (results?.imposter ? [results.imposter] : [])).filter(Boolean);
+  const isCurrentUserImposter = imposters.some(imp => imp.id === currentUserId);
+  const imposterCaught = results?.imposterCaught;
+  
+  // Current user wins if: (imposter caught AND not imposter) OR (imposter not caught AND is imposter)
+  const isWinner = imposterCaught ? !isCurrentUserImposter : isCurrentUserImposter;
   
   useEffect(() => {
     if (results?.imposterCaught) {
@@ -402,34 +414,80 @@ const ResultsView = memo(function ResultsView({ results, currentUserId }) {
     } else {
       errorHaptic();
     }
-  }, [results?.imposterCaught, success, errorHaptic]);
+    
+    // Show victory animation and confetti for winners
+    setShowVictoryAnim(true);
+    if (isWinner) {
+      setShowConfetti(true);
+    }
+    
+    // Check for new achievements in results
+    if (results?.newAchievements && results.newAchievements.length > 0) {
+      // Show achievements one by one with delay
+      results.newAchievements.forEach((achievement, index) => {
+        setTimeout(() => {
+          setNewAchievement(achievement);
+        }, 2000 + (index * 4500)); // Stagger achievement popups
+      });
+    }
+  }, [results?.imposterCaught, success, errorHaptic, isWinner, results?.newAchievements]);
 
   if (!results) return null;
-
-  // Support multiple imposters
-  const imposters = (results.imposters || (results.imposter ? [results.imposter] : [])).filter(Boolean);
   
   // Get sorted scores for leaderboard
   const sortedScores = [...(results.scores || [])].sort((a, b) => (b.score || 0) - (a.score || 0));
+  
+  // Check if this is a multi-round game
+  const hasMultipleRounds = results.totalRounds && results.totalRounds > 1;
 
   return (
     <div className="max-w-2xl mx-auto text-center space-y-6 pt-4 animate-slide-up">
+      {/* Confetti for winners */}
+      <Confetti 
+        isActive={showConfetti} 
+        duration={4000} 
+        pieceCount={150}
+        onComplete={() => setShowConfetti(false)}
+      />
+      
+      {/* Victory/Defeat Animation */}
+      {showVictoryAnim && (
+        <VictoryAnimation 
+          isWinner={isWinner}
+          isImposter={isCurrentUserImposter}
+          onComplete={() => setShowVictoryAnim(false)}
+        />
+      )}
+      
+      {/* Achievement Popup */}
+      <AchievementPopup 
+        achievement={newAchievement}
+        isVisible={!!newAchievement}
+        onClose={() => setNewAchievement(null)}
+      />
+
       <div className="mb-6">
         {results.imposterCaught ? (
           <div className="text-green-500 flex flex-col items-center gap-3">
-            <div className="p-5 bg-green-500/20 rounded-full pulse-glow">
+            <div className={`p-5 bg-green-500/20 rounded-full ${!isCurrentUserImposter ? 'animate-glow-pulse' : ''}`}>
               <CheckCircle className="w-14 h-14" />
             </div>
             <h2 className="text-2xl sm:text-3xl font-black">Imposter gefasst! 🎉</h2>
+            <p className={`text-lg font-medium ${isWinner ? 'text-green-400' : 'text-red-400'}`}>
+              {isWinner ? 'Du hast gewonnen! 🏆' : 'Du wurdest erwischt! 😅'}
+            </p>
           </div>
         ) : (
           <div className="text-red-500 flex flex-col items-center gap-3">
-            <div className="p-5 bg-red-500/20 rounded-full">
+            <div className={`p-5 bg-red-500/20 rounded-full ${isCurrentUserImposter ? 'animate-glow-pulse' : ''}`}>
               <AlertTriangle className="w-14 h-14" />
             </div>
             <h2 className="text-2xl sm:text-3xl font-black">
               {imposters.length > 1 ? 'Imposter gewinnen!' : 'Imposter gewinnt!'} 😈
             </h2>
+            <p className={`text-lg font-medium ${isWinner ? 'text-green-400' : 'text-red-400'}`}>
+              {isWinner ? 'Du hast gewonnen! 🎭' : 'Du hast verloren! 💀'}
+            </p>
           </div>
         )}
       </div>

@@ -2,14 +2,24 @@
 import { useState, useEffect, useCallback, memo } from 'react';
 import { useSocket } from '@/context/SocketContext';
 import { useRouter } from 'next/navigation';
-import { Music, Users, PlayCircle, HelpCircle, X, Gem, Sparkles, Volume2, Wifi, Loader2, BarChart3 } from 'lucide-react';
+import { Music, Users, PlayCircle, HelpCircle, X, Gem, Sparkles, Volume2, Wifi, Loader2, BarChart3, User, Trophy } from 'lucide-react';
 import { Device } from '@capacitor/device';
 import { Capacitor } from '@capacitor/core';
 import { useToast } from '@/components/Toast';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import InteractiveTutorial from '@/components/InteractiveTutorial';
 import PlayerStats from '@/components/PlayerStats';
+import ProfileModal from '@/components/ProfileModal';
+import LeaderboardModal from '@/components/LeaderboardModal';
 import useHaptics from '@/hooks/useHaptics';
+
+// Helper function for server URL
+const getServerUrl = () => {
+  if (!Capacitor.isNativePlatform() && typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return 'http://localhost:3001';
+  }
+  return process.env.NEXT_PUBLIC_SERVER_URL || 'https://prominent-hookworm-dailyvibes-2b2f2caa.koyeb.app';
+};
 
 // Memoized Logo Component for performance
 const Logo = memo(function Logo() {
@@ -180,6 +190,9 @@ function GameEntry() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [showInteractiveTutorial, setShowInteractiveTutorial] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
+  const [deviceId, setDeviceId] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const socket = useSocket();
@@ -237,6 +250,7 @@ function GameEntry() {
         }
         
         if (!uuid) return;
+        setDeviceId(uuid); // Store deviceId for profile
 
         let serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'https://prominent-hookworm-dailyvibes-2b2f2caa.koyeb.app';
         if (!Capacitor.isNativePlatform() && window.location.hostname === 'localhost') {
@@ -369,6 +383,22 @@ function GameEntry() {
         onSuccess={() => setIsPro(true)}
       />
 
+      {/* Profile Modal */}
+      <ProfileModal 
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        deviceId={deviceId}
+        serverUrl={getServerUrl()}
+      />
+
+      {/* Leaderboard Modal */}
+      <LeaderboardModal 
+        isOpen={showLeaderboardModal}
+        onClose={() => setShowLeaderboardModal(false)}
+        serverUrl={getServerUrl()}
+        currentDeviceId={deviceId}
+      />
+
       {/* PRO BUTTON */}
       {!isPro && (
         <button
@@ -401,6 +431,30 @@ function GameEntry() {
         aria-label="Statistiken"
       >
         <BarChart3 className="w-5 h-5 text-purple-400 group-hover:scale-110 transition-transform" />
+      </button>
+
+      {/* Profile Button */}
+      <button
+        onClick={() => {
+          lightImpact();
+          setShowProfileModal(true);
+        }}
+        className="fixed top-4 left-16 z-40 p-3 glass rounded-full shadow-lg hover:bg-slate-700/50 transition-all btn-press group border border-blue-500/30"
+        aria-label="Profil"
+      >
+        <User className="w-5 h-5 text-blue-400 group-hover:scale-110 transition-transform" />
+      </button>
+
+      {/* Leaderboard Button */}
+      <button
+        onClick={() => {
+          lightImpact();
+          setShowLeaderboardModal(true);
+        }}
+        className="fixed top-4 left-28 z-40 p-3 glass rounded-full shadow-lg hover:bg-slate-700/50 transition-all btn-press group border border-green-500/30"
+        aria-label="Rangliste"
+      >
+        <Trophy className="w-5 h-5 text-green-400 group-hover:scale-110 transition-transform" />
       </button>
 
       <div className="w-full max-w-md p-6 sm:p-8 space-y-8 glass rounded-3xl shadow-2xl border border-white/10 relative animate-slide-up">
