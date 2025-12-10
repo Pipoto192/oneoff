@@ -731,6 +731,31 @@ io.on('connection', (socket) => {
     const imposter = imposters[0]; // For backwards compatibility
     const votedOutUser = room.users.find(u => u.id === votedOutId);
 
+    // Calculate Scores
+    room.users.forEach(user => {
+      if (typeof user.score !== 'number') user.score = 0;
+      
+      const isImposter = room.imposterIds.includes(user.id);
+      
+      if (imposterCaught) {
+        // Crewmates win
+        if (!isImposter) {
+          user.score += 100; // Win bonus
+          
+          // Bonus for voting correctly
+          const votedForId = room.votes[user.id];
+          if (room.imposterIds.includes(votedForId)) {
+            user.score += 50;
+          }
+        }
+      } else {
+        // Imposters win
+        if (isImposter) {
+          user.score += 200;
+        }
+      }
+    });
+
     room.gameState = 'RESULTS';
     
     // Send game results
@@ -741,7 +766,8 @@ io.on('connection', (socket) => {
       votedOutUser,
       votes: room.votes,
       songs: room.currentSongs,
-      imposterCount: room.imposterIds.length
+      imposterCount: room.imposterIds.length,
+      scores: room.users
     });
 
     // Return to lobby after 10 seconds

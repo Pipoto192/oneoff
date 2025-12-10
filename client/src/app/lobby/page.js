@@ -405,7 +405,7 @@ const ResultsView = memo(function ResultsView({ results, currentUserId }) {
   }, [results.imposterCaught, success, errorHaptic]);
 
   // Support multiple imposters
-  const imposters = results.imposters || [results.imposter];
+  const imposters = (results.imposters || [results.imposter]).filter(Boolean);
   
   // Get sorted scores for leaderboard
   const sortedScores = [...(results.scores || [])].sort((a, b) => (b.score || 0) - (a.score || 0));
@@ -450,13 +450,13 @@ const ResultsView = memo(function ResultsView({ results, currentUserId }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-slate-700/50">
           <div className="text-left p-3 bg-green-500/10 rounded-xl border border-green-500/20">
             <p className="text-xs text-green-400 uppercase mb-1 font-medium">Normaler Song</p>
-            <p className="font-bold text-white truncate text-sm">{results.songs.common.title}</p>
-            <p className="text-xs text-slate-400 truncate">{results.songs.common.artist}</p>
+            <p className="font-bold text-white truncate text-sm">{results.songs?.common?.title || 'Unbekannt'}</p>
+            <p className="text-xs text-slate-400 truncate">{results.songs?.common?.artist || ''}</p>
           </div>
           <div className="text-left p-3 bg-red-500/10 rounded-xl border border-red-500/20">
             <p className="text-xs text-red-400 uppercase mb-1 font-medium">Imposter Song</p>
-            <p className="font-bold text-white truncate text-sm">{results.songs.imposter.title}</p>
-            <p className="text-xs text-slate-400 truncate">{results.songs.imposter.artist}</p>
+            <p className="font-bold text-white truncate text-sm">{results.songs?.imposter?.title || 'Unbekannt'}</p>
+            <p className="text-xs text-slate-400 truncate">{results.songs?.imposter?.artist || ''}</p>
           </div>
         </div>
       </div>
