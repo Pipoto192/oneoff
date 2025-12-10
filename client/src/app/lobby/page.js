@@ -397,15 +397,17 @@ const ResultsView = memo(function ResultsView({ results, currentUserId }) {
   const { success, error: errorHaptic } = useHaptics();
   
   useEffect(() => {
-    if (results.imposterCaught) {
+    if (results?.imposterCaught) {
       success();
     } else {
       errorHaptic();
     }
-  }, [results.imposterCaught, success, errorHaptic]);
+  }, [results?.imposterCaught, success, errorHaptic]);
+
+  if (!results) return null;
 
   // Support multiple imposters
-  const imposters = (results.imposters || [results.imposter]).filter(Boolean);
+  const imposters = (results.imposters || (results.imposter ? [results.imposter] : [])).filter(Boolean);
   
   // Get sorted scores for leaderboard
   const sortedScores = [...(results.scores || [])].sort((a, b) => (b.score || 0) - (a.score || 0));
@@ -439,9 +441,9 @@ const ResultsView = memo(function ResultsView({ results, currentUserId }) {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             {imposters.map(imp => (
-              <div key={imp.id} className="flex items-center gap-2">
-                <img src={imp.avatar} className="w-10 h-10 rounded-full ring-2 ring-red-500" alt="" />
-                <span className="text-lg font-bold text-red-400">{imp.name}</span>
+              <div key={imp.id || Math.random()} className="flex items-center gap-2">
+                <img src={imp.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${imp.name}`} className="w-10 h-10 rounded-full ring-2 ring-red-500" alt="" />
+                <span className="text-lg font-bold text-red-400">{imp.name || 'Unbekannt'}</span>
               </div>
             ))}
           </div>
