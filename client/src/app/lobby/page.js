@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef, Suspense, useCallback, memo } from 'react';
 import { useSocket } from '@/context/SocketContext';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Play, User, Music, AlertTriangle, Crown, CheckCircle, ListMusic, Gem, X, Search, Link, Copy, Share2, ArrowLeft, Settings, Users, Clock, UserX, Bluetooth, Wifi, Ban, Timer } from 'lucide-react';
+import { Play, User, Music, AlertTriangle, Crown, CheckCircle, ListMusic, Gem, X, Search, Link, Copy, Share2, ArrowLeft, Settings, Users, Clock, UserX, Bluetooth, Wifi, Ban, Timer, Share } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { Device } from '@capacitor/device';
@@ -12,6 +12,9 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import MusicWave from '@/components/MusicWave';
 import CountdownTimer from '@/components/CountdownTimer';
 import PlayerCard from '@/components/PlayerCard';
+import ShareResult from '@/components/ShareResult';
+import SavedPlaylists from '@/components/SavedPlaylists';
+import SuggestedPlaylists from '@/components/SuggestedPlaylists';
 import useHaptics from '@/hooks/useHaptics';
 
 // Header Component
@@ -162,12 +165,53 @@ const GameSettingsPanel = memo(function GameSettingsPanel({
     { value: 30, label: '30s' },
   ];
 
+  const roundOptions = [
+    { value: 1, label: '1' },
+    { value: 3, label: '3' },
+    { value: 5, label: '5' },
+    { value: 10, label: '10' },
+  ];
+
   return (
     <div className="pt-5 border-t border-slate-700/50 space-y-4">
       <h3 className="text-base font-bold flex items-center gap-2">
         <Settings className="w-5 h-5 text-purple-400" />
         Spieleinstellungen
       </h3>
+      
+      {/* Total Rounds */}
+      <div className="p-4 bg-slate-800/50 rounded-xl space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🔁</span>
+          <span className="text-sm font-medium">Anzahl Runden</span>
+        </div>
+        <div className="flex gap-2">
+          {roundOptions.map(opt => {
+            const active = (settings.totalRounds || 1) === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => {
+                  lightImpact();
+                  onUpdateSettings({ totalRounds: opt.value });
+                }}
+                className={`flex-1 py-3 rounded-xl font-bold transition-all btn-press ${
+                  active 
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white' 
+                    : 'bg-slate-700 hover:bg-slate-600 text-white'
+                }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-xs text-slate-500 text-center">
+          {(settings.totalRounds || 1) > 1 
+            ? `Punkte werden über ${settings.totalRounds || 1} Runden gesammelt` 
+            : 'Einzelrunde ohne Punktestand'}
+        </p>
+      </div>
       
       {/* Imposter Count */}
       <div className="p-4 bg-slate-800/50 rounded-xl space-y-3">
@@ -391,7 +435,7 @@ const NearbyLobbies = memo(function NearbyLobbies({ lobbies, onJoin, isScanning 
 });
 
 // Results View Component
-const ResultsView = memo(function ResultsView({ results }) {
+const ResultsView = memo(function ResultsView({ results, currentUserId }) {
   const { success, error: errorHaptic } = useHaptics();
   
   useEffect(() => {
@@ -404,61 +448,138 @@ const ResultsView = memo(function ResultsView({ results }) {
 
   // Support multiple imposters
   const imposters = results.imposters || [results.imposter];
+  
+  // Get sorted scores for leaderboard
+  const sortedScores = [...(results.scores || [])].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const hasMultipleRounds = results.totalRounds && results.totalRounds > 1;
+  const currentUserScore = results.roundScores?.[currentUserId] || 0;
 
   return (
-    <div className="max-w-2xl mx-auto text-center space-y-8 pt-6 animate-slide-up">
-      <div className="mb-8">
+    <div className="max-w-2xl mx-auto text-center space-y-6 pt-4 animate-slide-up">
+      {/* Round Info */}
+      {hasMultipleRounds && (
+        <div className="glass p-3 rounded-2xl inline-flex items-center gap-3">
+          <span className="text-lg">🔁</span>
+          <span className="font-bold">
+            Runde {results.currentRound} / {results.totalRounds}
+          </span>
+          {results.isGameComplete && (
+            <span className="bg-gradient-to-r from-yellow-500 to-orange-500 px-3 py-1 rounded-full text-sm font-bold">
+              Spiel beendet!
+            </span>
+          )}
+        </div>
+      )}
+
+      <div className="mb-6">
         {results.imposterCaught ? (
-          <div className="text-green-500 flex flex-col items-center gap-4">
-            <div className="p-6 bg-green-500/20 rounded-full pulse-glow">
-              <CheckCircle className="w-16 h-16" />
+          <div className="text-green-500 flex flex-col items-center gap-3">
+            <div className="p-5 bg-green-500/20 rounded-full pulse-glow">
+              <CheckCircle className="w-14 h-14" />
             </div>
-            <h2 className="text-3xl sm:text-4xl font-black">Imposter gefasst! 🎉</h2>
+            <h2 className="text-2xl sm:text-3xl font-black">Imposter gefasst! 🎉</h2>
           </div>
         ) : (
-          <div className="text-red-500 flex flex-col items-center gap-4">
-            <div className="p-6 bg-red-500/20 rounded-full">
-              <AlertTriangle className="w-16 h-16" />
+          <div className="text-red-500 flex flex-col items-center gap-3">
+            <div className="p-5 bg-red-500/20 rounded-full">
+              <AlertTriangle className="w-14 h-14" />
             </div>
-            <h2 className="text-3xl sm:text-4xl font-black">
+            <h2 className="text-2xl sm:text-3xl font-black">
               {imposters.length > 1 ? 'Imposter gewinnen!' : 'Imposter gewinnt!'} 😈
             </h2>
           </div>
         )}
       </div>
 
-      <div className="glass p-6 sm:p-8 rounded-3xl space-y-6">
+      {/* Points earned this round */}
+      {results.roundScores && (
+        <div className="glass p-4 rounded-2xl bg-gradient-to-r from-purple-600/20 to-pink-600/20">
+          <div className="flex items-center justify-center gap-3">
+            <span className="text-2xl">⭐</span>
+            <div>
+              <p className="text-sm text-slate-400">Deine Punkte diese Runde</p>
+              <p className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+                +{currentUserScore}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="glass p-5 rounded-3xl space-y-5">
         <div>
-          <p className="text-slate-400 mb-3 text-sm uppercase tracking-wider">
+          <p className="text-slate-400 mb-2 text-sm uppercase tracking-wider">
             {imposters.length > 1 ? 'Die Imposter waren' : 'Der Imposter war'}
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-3">
             {imposters.map(imp => (
               <div key={imp.id} className="flex items-center gap-2">
-                <img src={imp.avatar} className="w-12 h-12 rounded-full ring-2 ring-red-500" alt="" />
-                <span className="text-xl font-bold text-red-400">{imp.name}</span>
+                <img src={imp.avatar} className="w-10 h-10 rounded-full ring-2 ring-red-500" alt="" />
+                <span className="text-lg font-bold text-red-400">{imp.name}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-5 border-t border-slate-700/50">
-          <div className="text-left p-4 bg-green-500/10 rounded-2xl border border-green-500/20">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-slate-700/50">
+          <div className="text-left p-3 bg-green-500/10 rounded-xl border border-green-500/20">
             <p className="text-xs text-green-400 uppercase mb-1 font-medium">Normaler Song</p>
-            <p className="font-bold text-white truncate">{results.songs.common.title}</p>
-            <p className="text-sm text-slate-400 truncate">{results.songs.common.artist}</p>
+            <p className="font-bold text-white truncate text-sm">{results.songs.common.title}</p>
+            <p className="text-xs text-slate-400 truncate">{results.songs.common.artist}</p>
           </div>
-          <div className="text-left p-4 bg-red-500/10 rounded-2xl border border-red-500/20">
+          <div className="text-left p-3 bg-red-500/10 rounded-xl border border-red-500/20">
             <p className="text-xs text-red-400 uppercase mb-1 font-medium">Imposter Song</p>
-            <p className="font-bold text-white truncate">{results.songs.imposter.title}</p>
-            <p className="text-sm text-slate-400 truncate">{results.songs.imposter.artist}</p>
+            <p className="font-bold text-white truncate text-sm">{results.songs.imposter.title}</p>
+            <p className="text-xs text-slate-400 truncate">{results.songs.imposter.artist}</p>
           </div>
         </div>
       </div>
 
+      {/* Leaderboard for multi-round games */}
+      {hasMultipleRounds && sortedScores.length > 0 && (
+        <div className="glass p-4 rounded-2xl">
+          <h3 className="text-lg font-bold mb-3 flex items-center justify-center gap-2">
+            <span>🏆</span> Punktestand
+          </h3>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {sortedScores.map((player, index) => (
+              <div 
+                key={player.id}
+                className={`flex items-center justify-between p-3 rounded-xl ${
+                  player.id === currentUserId 
+                    ? 'bg-purple-600/30 border border-purple-500/50' 
+                    : 'bg-slate-800/50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">
+                    {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                  </span>
+                  <span className="font-medium">{player.name}</span>
+                </div>
+                <span className="font-bold text-purple-400">{player.score || 0}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Share Result */}
+      <ShareResult 
+        results={results}
+        currentUserId={currentUserId}
+      />
+
       <div className="flex items-center justify-center gap-2 text-slate-400">
         <LoadingSpinner size="sm" variant="dots" />
-        <span>Zurück zur Lobby...</span>
+        <span>
+          {results.isGameComplete 
+            ? 'Zurück zur Lobby...' 
+            : hasMultipleRounds 
+              ? 'Nächste Runde startet...'
+              : 'Zurück zur Lobby...'
+          }
+        </span>
       </div>
     </div>
   );
@@ -692,6 +813,18 @@ function LobbyContent() {
       }
     });
 
+    socket.on('next_round', ({ currentRound, totalRounds, scores }) => {
+      // Multi-round: prepare for next round
+      showToast(`Runde ${currentRound} von ${totalRounds} - Nächste Runde!`, 'info');
+      setGameData(null);
+      setHasVoted(false);
+      setVotedForId(null);
+    });
+
+    socket.on('game_complete', ({ finalScores, winner }) => {
+      showToast(`🏆 ${winner?.name || 'Jemand'} gewinnt das Spiel!`, 'success');
+    });
+
     socket.on('return_to_lobby', ({ room }) => {
       setRoom(room);
       setGameData(null);
@@ -723,6 +856,8 @@ function LobbyContent() {
       socket.off('voting_started');
       socket.off('vote_update');
       socket.off('game_over');
+      socket.off('next_round');
+      socket.off('game_complete');
       socket.off('return_to_lobby');
       socket.off('nearby_lobbies');
       socket.off('error');
@@ -924,6 +1059,12 @@ function LobbyContent() {
                 onToggleRoles={toggleShowRoles}
               />
 
+              {/* Saved & Suggested Playlists */}
+              <div className="pt-4 border-t border-slate-700/50 space-y-4">
+                <SavedPlaylists onSelectPlaylist={(id) => handlePlaylistSelect(id, 'Favorit')} />
+                <SuggestedPlaylists onSelectPlaylist={(id, name) => handlePlaylistSelect(id, name)} />
+              </div>
+
               {/* Nearby Discovery Toggle */}
               <div className="pt-4 border-t border-slate-700/50">
                 <button
@@ -1105,7 +1246,7 @@ function LobbyContent() {
 
       {/* RESULTS VIEW */}
       {room.gameState === 'RESULTS' && gameData?.results && (
-        <ResultsView results={gameData.results} />
+        <ResultsView results={gameData.results} currentUserId={currentUser?.id} />
       )}
 
       {/* PRO BADGE */}

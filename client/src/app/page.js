@@ -2,11 +2,13 @@
 import { useState, useEffect, useCallback, memo } from 'react';
 import { useSocket } from '@/context/SocketContext';
 import { useRouter } from 'next/navigation';
-import { Music, Users, PlayCircle, HelpCircle, X, Gem, Sparkles, Volume2, Wifi, Loader2 } from 'lucide-react';
+import { Music, Users, PlayCircle, HelpCircle, X, Gem, Sparkles, Volume2, Wifi, Loader2, BarChart3 } from 'lucide-react';
 import { Device } from '@capacitor/device';
 import { Capacitor } from '@capacitor/core';
 import { useToast } from '@/components/Toast';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import InteractiveTutorial from '@/components/InteractiveTutorial';
+import PlayerStats from '@/components/PlayerStats';
 import useHaptics from '@/hooks/useHaptics';
 
 // Memoized Logo Component for performance
@@ -176,6 +178,8 @@ function GameEntry() {
   const [username, setUsername] = useState('');
   const [roomId, setRoomId] = useState('');
   const [showTutorial, setShowTutorial] = useState(false);
+  const [showInteractiveTutorial, setShowInteractiveTutorial] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const socket = useSocket();
@@ -194,7 +198,8 @@ function GameEntry() {
   useEffect(() => {
     const hasSeenTutorial = localStorage.getItem('hasSeenTutorial');
     if (!hasSeenTutorial) {
-      setShowTutorial(true);
+      // Show interactive tutorial for first time users
+      setShowInteractiveTutorial(true);
     }
 
     // Restore saved username
@@ -263,6 +268,7 @@ function GameEntry() {
   const closeTutorial = useCallback(() => {
     localStorage.setItem('hasSeenTutorial', 'true');
     setShowTutorial(false);
+    setShowInteractiveTutorial(false);
     lightImpact();
   }, [lightImpact]);
 
@@ -344,6 +350,18 @@ function GameEntry() {
       {/* Tutorial Modal */}
       <TutorialModal isOpen={showTutorial} onClose={closeTutorial} />
 
+      {/* Interactive Tutorial for new users */}
+      <InteractiveTutorial 
+        isOpen={showInteractiveTutorial} 
+        onClose={closeTutorial} 
+      />
+
+      {/* Player Stats Modal */}
+      <PlayerStats 
+        isOpen={showStats} 
+        onClose={() => setShowStats(false)} 
+      />
+
       {/* Pro Redeem Modal */}
       <ProRedeemModal 
         isOpen={showRedeemModal} 
@@ -372,6 +390,18 @@ function GameEntry() {
           <span className="text-xs font-bold text-yellow-400">PRO</span>
         </div>
       )}
+
+      {/* Stats Button */}
+      <button
+        onClick={() => {
+          lightImpact();
+          setShowStats(true);
+        }}
+        className="fixed top-4 left-4 z-40 p-3 glass rounded-full shadow-lg hover:bg-slate-700/50 transition-all btn-press group border border-purple-500/30"
+        aria-label="Statistiken"
+      >
+        <BarChart3 className="w-5 h-5 text-purple-400 group-hover:scale-110 transition-transform" />
+      </button>
 
       <div className="w-full max-w-md p-6 sm:p-8 space-y-8 glass rounded-3xl shadow-2xl border border-white/10 relative animate-slide-up">
         {/* Help Button */}
@@ -495,7 +525,7 @@ function GameEntry() {
         </div>
 
         {/* Version info */}
-        <p className="text-center text-slate-600 text-xs pt-2">v1.9 • Made with ❤️</p>
+        <p className="text-center text-slate-600 text-xs pt-2">v2.0 • Made with ❤️</p>
       </div>
     </main>
   );
