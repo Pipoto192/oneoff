@@ -305,7 +305,7 @@ function GameEntry() {
     localStorage.setItem('userId', userId);
     localStorage.setItem('username', username.trim());
 
-    socket.emit('create_room', { username: username.trim(), userId });
+    socket.emit('create_room', { username: username.trim(), userId, deviceId });
     socket.once('room_created', ({ roomId, userId }) => {
       localStorage.setItem('userId', userId);
       success();
@@ -335,7 +335,7 @@ function GameEntry() {
     localStorage.setItem('userId', userId);
     localStorage.setItem('username', username.trim());
 
-    socket.emit('join_room', { roomId: roomId.trim().toUpperCase(), username: username.trim(), userId });
+    socket.emit('join_room', { roomId: roomId.trim().toUpperCase(), username: username.trim(), userId, deviceId });
     
     socket.once('joined_room', ({ roomId, userId }) => {
       localStorage.setItem('userId', userId);

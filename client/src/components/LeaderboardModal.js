@@ -17,11 +17,11 @@ const LeaderboardModal = memo(function LeaderboardModal({
     try {
       setLoading(true);
       const res = await fetch(
-        `${serverUrl}/api/leaderboard?sortBy=${sortBy}&order=${sortOrder}&limit=50`
+        `${serverUrl}/api/leaderboard?type=${sortBy}&limit=50`
       );
       if (res.ok) {
         const data = await res.json();
-        setPlayers(data);
+        setPlayers(data.leaderboard || []);
       }
     } catch (error) {
       console.error('Error fetching leaderboard:', error);
@@ -131,7 +131,7 @@ const LeaderboardModal = memo(function LeaderboardModal({
                     {/* Player Info */}
                     <div className="flex-1 min-w-0">
                       <p className={`font-medium truncate ${isCurrentUser ? 'text-purple-300' : 'text-white'}`}>
-                        {player.displayName || 'Spieler'}
+                        {player.username || 'Spieler'}
                         {isCurrentUser && <span className="text-purple-400 ml-1">(Du)</span>}
                       </p>
                       <div className="flex gap-3 text-xs text-slate-400">

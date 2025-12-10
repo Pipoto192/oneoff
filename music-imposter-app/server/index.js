@@ -416,16 +416,17 @@ io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
   // Create Room
-  socket.on('create_room', ({ username, userId }) => {
+  socket.on('create_room', ({ username, userId, deviceId }) => {
     const roomId = Math.random().toString(36).substring(2, 7).toUpperCase();
     const finalUserId = userId || uuidv4();
     
-    console.log(`[CREATE] Room ${roomId} created by ${username} (${finalUserId})`);
+    console.log(`[CREATE] Room ${roomId} created by ${username} (${finalUserId}), deviceId: ${deviceId}`);
 
     rooms[roomId] = {
       id: roomId,
       users: [{
         id: finalUserId,
+        deviceId: deviceId || finalUserId, // Store deviceId for stats
         name: username,
         socketId: socket.id,
         isHost: true,
@@ -455,9 +456,9 @@ io.on('connection', (socket) => {
   });
 
   // Join Room
-  socket.on('join_room', ({ roomId, username, userId }) => {
+  socket.on('join_room', ({ roomId, username, userId, deviceId }) => {
     const safeRoomId = roomId ? roomId.toUpperCase() : '';
-    console.log(`[JOIN] Request for room ${safeRoomId} by ${username} (${userId})`);
+    console.log(`[JOIN] Request for room ${safeRoomId} by ${username} (${userId}), deviceId: ${deviceId}`);
 
     if (!rooms[safeRoomId]) {
       console.log(`[JOIN] Room ${safeRoomId} not found`);
@@ -494,6 +495,7 @@ io.on('connection', (socket) => {
     
     const newUser = {
       id: finalUserId,
+      deviceId: deviceId || finalUserId, // Store deviceId for stats
       name: username,
       socketId: socket.id,
       isHost: false,
@@ -846,7 +848,12 @@ io.on('connection', (socket) => {
     
     try {
       for (const user of room.users) {
-        const deviceId = user.id; // Using the stored ID
+        const deviceId = user.deviceId; // Use the stored deviceId for stats
+        if (!deviceId) {
+          console.log(`[STATS] No deviceId for user ${user.name}, skipping stats update`);
+          continue;
+        }
+        
         let profile = await PlayerProfile.findOne({ deviceId });
         
         if (!profile) {

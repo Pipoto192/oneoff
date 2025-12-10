@@ -25,12 +25,13 @@ const ProfileModal = memo(function ProfileModal({
       
       if (profileRes.ok) {
         const data = await profileRes.json();
-        setProfile(data);
+        setProfile(data.profile);
       }
       
       if (achievementsRes.ok) {
         const data = await achievementsRes.json();
-        setAchievements(data);
+        // Convert achievements object to array
+        setAchievements(Object.values(data.achievements || {}));
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -66,7 +67,8 @@ const ProfileModal = memo(function ProfileModal({
     ? Math.round((stats.timesImposterWon / stats.timesImposter) * 100) 
     : 0;
 
-  const unlockedAchievements = profile?.achievements || [];
+  // achievements is array of {id, unlockedAt} objects, extract just the ids
+  const unlockedAchievements = (profile?.achievements || []).map(a => a.id);
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
