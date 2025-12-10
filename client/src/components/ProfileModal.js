@@ -43,7 +43,6 @@ const ProfileModal = memo(function ProfileModal({
         }
       }
       
-      console.log('[PROFILE] Got deviceId:', uuid);
       setDeviceId(uuid);
     };
     
@@ -54,12 +53,9 @@ const ProfileModal = memo(function ProfileModal({
 
   const fetchProfile = useCallback(async () => {
     if (!deviceId) {
-      console.log('[PROFILE] No deviceId available');
       setLoading(false);
       return;
     }
-    
-    console.log('[PROFILE] Fetching profile for deviceId:', deviceId);
     
     try {
       setLoading(true);
@@ -70,10 +66,7 @@ const ProfileModal = memo(function ProfileModal({
       
       if (profileRes.ok) {
         const data = await profileRes.json();
-        console.log('[PROFILE] Received profile:', data.profile);
         setProfile(data.profile);
-      } else {
-        console.error('[PROFILE] Profile request failed:', profileRes.status);
       }
       
       if (achievementsRes.ok) {
@@ -82,7 +75,7 @@ const ProfileModal = memo(function ProfileModal({
         setAchievements(Object.values(data.achievements || {}));
       }
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      // Silent fail
     } finally {
       setLoading(false);
     }

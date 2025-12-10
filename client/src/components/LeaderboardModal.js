@@ -17,7 +17,6 @@ const LeaderboardModal = memo(function LeaderboardModal({
   const serverUrl = propServerUrl || 'https://prominent-hookworm-dailyvibes-2b2f2caa.koyeb.app';
 
   const fetchLeaderboard = useCallback(async () => {
-    console.log('[LEADERBOARD] Fetching from:', serverUrl);
     try {
       setLoading(true);
       const res = await fetch(
@@ -25,7 +24,6 @@ const LeaderboardModal = memo(function LeaderboardModal({
       );
       if (res.ok) {
         const data = await res.json();
-        console.log('[LEADERBOARD] Received players:', data.leaderboard?.length);
         // Filter duplicates by deviceId (shouldn't happen but just in case)
         const uniquePlayers = [];
         const seenDeviceIds = new Set();
@@ -38,7 +36,7 @@ const LeaderboardModal = memo(function LeaderboardModal({
         setPlayers(uniquePlayers);
       }
     } catch (error) {
-      console.error('Error fetching leaderboard:', error);
+      // Silent fail
     } finally {
       setLoading(false);
     }

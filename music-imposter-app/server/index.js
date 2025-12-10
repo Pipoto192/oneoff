@@ -136,12 +136,10 @@ app.get('/api/status', async (req, res) => {
 // Get or Create Player Profile
 app.get('/api/profile', async (req, res) => {
   const { deviceId } = req.query;
-  console.log('[PROFILE] Fetching profile for deviceId:', deviceId);
   if (!deviceId) return res.status(400).json({ error: 'deviceId erforderlich' });
 
   try {
     let profile = await PlayerProfile.findOne({ deviceId });
-    console.log('[PROFILE] Found profile:', profile ? 'Yes' : 'No', 'Stats:', profile?.stats);
     if (!profile) {
       return res.json({ profile: null });
     }
@@ -861,7 +859,6 @@ io.on('connection', (socket) => {
       for (const user of room.users) {
         const deviceId = user.deviceId; // Use the stored deviceId for stats
         if (!deviceId) {
-          console.log(`[STATS] No deviceId for user ${user.name}, skipping stats update`);
           continue;
         }
         
@@ -874,11 +871,9 @@ io.on('connection', (socket) => {
             username: user.name,
             stats: {}
           });
-          console.log(`[STATS] Created new profile for ${user.name} (${deviceId})`);
         } else {
           // Update username if changed
           if (profile.username !== user.name) {
-            console.log(`[STATS] Updating username from ${profile.username} to ${user.name}`);
             profile.username = user.name;
           }
         }
@@ -945,7 +940,6 @@ io.on('connection', (socket) => {
         }
 
         await profile.save();
-        console.log(`[STATS] Updated profile for ${user.name} (${deviceId}): gamesPlayed=${profile.stats.gamesPlayed}, gamesWon=${profile.stats.gamesWon}`);
         
         // Check for new achievements
         const newAchievements = await checkAchievements(profile);
@@ -957,7 +951,7 @@ io.on('connection', (socket) => {
         }
       }
     } catch (error) {
-      console.error('[STATS] Error updating player stats:', error);
+      // Silent error handling for stats
     }
     // ============ END UPDATE PLAYER STATS ============
 
