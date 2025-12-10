@@ -315,17 +315,14 @@ io.on('connection', (socket) => {
       availableTracks: null, // Will be populated from Spotify
       playlistName: null,
       showRoles: false,
-      // Settings
+      // New settings
       settings: {
         imposterCount: 1,
-        songDuration: 30, // 15 or 30 seconds
-        isPrivate: false,
-        fastVoteBonus: true // Bonus points for fast correct votes
+        songDuration: 30, // 15, 30, 45, 60 seconds
+        isPrivate: false
       },
       bannedUsers: [], // List of banned user IDs
-      nearbyId: null, // For Bluetooth nearby discovery
-      voteTimes: {}, // { oderId: timestamp } for fast vote bonus
-      roundStartTime: null
+      nearbyId: null // For Bluetooth nearby discovery
     };
 
     socket.join(roomId);
@@ -485,8 +482,7 @@ io.on('connection', (socket) => {
     room.settings = {
       imposterCount: imposterCount,
       songDuration: settings.songDuration || room.settings.songDuration,
-      isPrivate: settings.isPrivate !== undefined ? settings.isPrivate : room.settings.isPrivate,
-      fastVoteBonus: settings.fastVoteBonus !== undefined ? settings.fastVoteBonus : (room.settings.fastVoteBonus !== undefined ? room.settings.fastVoteBonus : true)
+      isPrivate: settings.isPrivate !== undefined ? settings.isPrivate : room.settings.isPrivate
     };
 
     console.log(`[SETTINGS] Room ${roomId} settings updated:`, room.settings);
@@ -626,20 +622,14 @@ io.on('connection', (socket) => {
          return;
     }
 
-    // Select Imposter(s) based on settings
+    // 1. Select Imposter(s) based on settings
     const userCount = room.users.length;
     const maxImposters = userCount < 4 ? 1 : (userCount < 6 ? 2 : 3);
     const imposterCount = Math.min(room.settings.imposterCount || 1, maxImposters);
     
-    if (userCount === 1) {
-      // Solo mode - the single player is the imposter
-      room.imposterIds = [room.users[0].id];
-      console.log('[GAME] Solo mode enabled - single player is imposter');
-    } else {
-      // Normal mode - shuffle users and pick imposters
-      const shuffledUsers = [...room.users].sort(() => 0.5 - Math.random());
-      room.imposterIds = shuffledUsers.slice(0, imposterCount).map(u => u.id);
-    }
+    // Shuffle users and pick imposters
+    const shuffledUsers = [...room.users].sort(() => 0.5 - Math.random());
+    room.imposterIds = shuffledUsers.slice(0, imposterCount).map(u => u.id);
     room.imposterId = room.imposterIds[0]; // Keep for backwards compatibility
 
     console.log(`[GAME] Selected ${imposterCount} imposter(s):`, room.imposterIds);
@@ -651,12 +641,10 @@ io.on('connection', (socket) => {
 
     room.gameState = 'PLAYING';
     room.votes = {};
-    room.voteTimes = {}; // Reset vote times for fast vote bonus
-    room.roundStartTime = Date.now();
 
     const songDuration = room.settings.songDuration || 30;
 
-    // Notify players
+    // 3. Notify players
     room.users.forEach(user => {
       const isImposter = room.imposterIds.includes(user.id);
       const songToPlay = isImposter ? imposterSong : commonSong;
@@ -673,29 +661,17 @@ io.on('connection', (socket) => {
     setTimeout(() => {
       if (rooms[roomId] && rooms[roomId].gameState === 'PLAYING') {
         rooms[roomId].gameState = 'VOTING';
-        rooms[roomId].votingStartTime = Date.now();
         io.to(roomId).emit('voting_started');
-        
-        // Auto-reveal results after 30 seconds voting time
-        setTimeout(() => {
-          if (rooms[roomId] && rooms[roomId].gameState === 'VOTING') {
-            console.log(`[VOTING] Time expired for room ${roomId}, revealing results`);
-            revealResults(roomId);
-          }
-        }, 30000); // 30 seconds voting time
       }
     }, songDuration * 1000);
   });
 
-  // Submit Vote - with timestamp for quick voting bonus
+  // Submit Vote
   socket.on('vote', ({ roomId, voterId, suspectId }) => {
     const room = rooms[roomId];
     if (!room || room.gameState !== 'VOTING') return;
 
-    // Record vote with timestamp for quick voting bonus
     room.votes[voterId] = suspectId;
-    if (!room.voteTimestamps) room.voteTimestamps = {};
-    room.voteTimestamps[voterId] = Date.now();
 
     // Check if everyone voted
     if (Object.keys(room.votes).length === room.users.length) {
@@ -731,55 +707,24 @@ io.on('connection', (socket) => {
     const imposter = imposters[0]; // For backwards compatibility
     const votedOutUser = room.users.find(u => u.id === votedOutId);
 
-    // Calculate Scores
-    room.users.forEach(user => {
-      if (typeof user.score !== 'number') user.score = 0;
-      
-      const isImposter = room.imposterIds.includes(user.id);
-      
-      if (imposterCaught) {
-        // Crewmates win
-        if (!isImposter) {
-          user.score += 100; // Win bonus
-          
-          // Bonus for voting correctly
-          const votedForId = room.votes[user.id];
-          if (room.imposterIds.includes(votedForId)) {
-            user.score += 50;
-          }
-        }
-      } else {
-        // Imposters win
-        if (isImposter) {
-          user.score += 200;
-        }
-      }
-    });
-
     room.gameState = 'RESULTS';
     
-    // Send game results
     io.to(roomId).emit('game_over', {
       imposterCaught,
       imposter,
-      imposters,
+      imposters, // All imposters for display
       votedOutUser,
       votes: room.votes,
       songs: room.currentSongs,
-      imposterCount: room.imposterIds.length,
-      scores: room.users
+      imposterCount: room.imposterIds.length
     });
 
-    // Return to lobby after 10 seconds
+    // Reset for next round after delay? Or let host restart.
     setTimeout(() => {
-      if (!rooms[roomId]) return;
-      
-      room.gameState = 'LOBBY';
-      room.votes = {};
-      room.voteTimestamps = {};
-      room.imposterIds = [];
-      
-      io.to(roomId).emit('return_to_lobby', { room });
+        room.gameState = 'LOBBY';
+        room.votes = {};
+        room.imposterId = null;
+        io.to(roomId).emit('return_to_lobby', { room });
     }, 10000);
   };
 
