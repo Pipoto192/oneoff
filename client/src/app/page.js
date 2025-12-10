@@ -533,7 +533,8 @@ function GameEntry() {
 
 function BetaLanding() {
   const googleGroupLink = "https://groups.google.com/g/oneoff-tester"; 
-  const androidLink = "https://play.google.com/store/apps/details?id=com.musicimposter.app"; 
+  const androidLink = "https://play.google.com/store/apps/details?id=com.musicimposter.app";
+  const discordLink = "https://discord.gg/jp49U6ncFh"; 
 
   return (
     <main className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-4 relative overflow-hidden safe-area-top safe-area-bottom">
@@ -595,6 +596,25 @@ function BetaLanding() {
               className="ml-10 block py-3 bg-green-600 hover:bg-green-500 text-white text-sm font-bold rounded-xl transition-all text-center shadow-lg btn-press"
             >
               Im Play Store laden
+            </a>
+          </div>
+
+          {/* Discord */}
+          <div className="bg-slate-700/50 p-4 rounded-2xl text-left space-y-3 border border-slate-600/50 hover:border-indigo-500/50 transition-colors card-interactive">
+            <div className="flex items-center gap-3">
+              <span className="bg-indigo-600 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold">💬</span>
+              <h3 className="font-bold text-white">Community beitreten</h3>
+            </div>
+            <p className="text-xs text-slate-400 pl-10">
+              Tritt unserem Discord bei für Updates, Support und um Mitspieler zu finden!
+            </p>
+            <a 
+              href={discordLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-10 block py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl transition-all text-center shadow-lg btn-press"
+            >
+              Discord beitreten
             </a>
           </div>
         </div>
