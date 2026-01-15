@@ -709,6 +709,12 @@ io.on('connection', (socket) => {
     const room = rooms[roomId];
     if (!room) return;
 
+    // Check minimum player count (at least 2 players)
+    if (room.users.length < 2) {
+        io.to(roomId).emit('error', { message: 'Mindestens 2 Spieler erforderlich zum Starten!' });
+        return;
+    }
+
     // Use Spotify tracks if available, else fallback
     let songPool = (room.availableTracks && room.availableTracks.length >= 2) 
       ? [...room.availableTracks] 

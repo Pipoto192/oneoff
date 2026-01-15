@@ -1127,13 +1127,25 @@ function LobbyContent() {
           
           {/* Start Button */}
           {currentUser?.isHost ? (
-            <button 
-              onClick={startGame}
-              className="w-full py-5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 rounded-2xl font-bold text-xl shadow-lg transition-all btn-press flex items-center justify-center gap-3 animate-slide-up stagger-2"
-            >
-              <Play className="w-6 h-6" /> 
-              Spiel starten
-            </button>
+            <>
+              <button 
+                onClick={startGame}
+                disabled={room.users.length < 2}
+                className={`w-full py-5 rounded-2xl font-bold text-xl shadow-lg transition-all btn-press flex items-center justify-center gap-3 animate-slide-up stagger-2 ${
+                  room.users.length < 2
+                    ? 'bg-slate-700 text-slate-400 cursor-not-allowed opacity-50'
+                    : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white'
+                }`}
+              >
+                <Play className="w-6 h-6" /> 
+                Spiel starten
+              </button>
+              {room.users.length < 2 && (
+                <p className="text-center text-red-400 text-sm">
+                  Mindestens 2 Spieler erforderlich zum Starten
+                </p>
+              )}
+            </>
           ) : (
             <div className="text-center text-slate-400 py-4 flex items-center justify-center gap-2">
               <LoadingSpinner size="sm" variant="dots" />

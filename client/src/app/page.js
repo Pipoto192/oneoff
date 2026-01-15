@@ -611,100 +611,138 @@ function GameEntry() {
   );
 }
 
-function BetaLanding() {
-  const googleGroupLink = "https://groups.google.com/g/oneoff-tester"; 
+function HomepageLanding() {
   const androidLink = "https://play.google.com/store/apps/details?id=com.musicimposter.app";
   const discordLink = "https://discord.gg/jp49U6ncFh"; 
 
   return (
-    <main className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-4 relative overflow-hidden safe-area-top safe-area-bottom">
+    <main className="min-h-screen bg-slate-900 text-white flex flex-col items-center p-4 relative overflow-hidden safe-area-top safe-area-bottom">
       {/* Background Elements */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-600/20 rounded-full blur-[100px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-pink-600/20 rounded-full blur-[100px]" />
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-purple-600/20 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-pink-600/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-[30%] right-[-5%] w-[30%] h-[30%] bg-blue-600/10 rounded-full blur-[80px] animate-pulse" style={{ animationDelay: '2s' }} />
       </div>
 
-      <div className="max-w-md w-full glass p-8 rounded-3xl border border-slate-700 shadow-2xl text-center space-y-6 animate-slide-up">
-        <div className="flex justify-center">
-          <div className="bg-gradient-to-br from-purple-600 to-pink-600 p-4 rounded-2xl shadow-lg pulse-glow">
-            <Users className="w-10 h-10 text-white" />
+      {/* Hero Section */}
+      <div className="flex-1 flex flex-col items-center justify-center max-w-4xl w-full py-12">
+        {/* Logo & Title */}
+        <div className="text-center space-y-6 mb-12 animate-slide-up">
+          <div className="flex justify-center mb-6">
+            <div className="relative">
+              <div className="p-6 bg-gradient-to-br from-purple-600 to-pink-600 rounded-3xl shadow-2xl pulse-glow">
+                <Music className="w-16 h-16 text-white" />
+              </div>
+              <div className="absolute -top-3 -right-3">
+                <Sparkles className="w-8 h-8 text-yellow-400 animate-pulse" />
+              </div>
+            </div>
           </div>
-        </div>
-        
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2">
-            Werde Beta-Tester
+          
+          <h1 className="text-5xl sm:text-7xl font-black gradient-text">
+            OneOff
           </h1>
-          <p className="text-slate-300 text-sm">
-            Teste die neuesten Features von <strong className="gradient-text">OneOff</strong> vor allen anderen!
+          <p className="text-xl sm:text-2xl text-slate-300 max-w-lg mx-auto">
+            Das ultimative Musik-Party-Spiel! 🎵
+          </p>
+          <p className="text-slate-400 text-base sm:text-lg max-w-md mx-auto">
+            Finde heraus, wer den falschen Beat hört – wie Among Us, aber mit Musik!
           </p>
         </div>
 
-        <div className="space-y-4 pt-2">
-          {/* Step 1 */}
-          <div className="bg-slate-700/50 p-4 rounded-2xl text-left space-y-3 border border-slate-600/50 hover:border-purple-500/50 transition-colors card-interactive">
-            <div className="flex items-center gap-3">
-              <span className="bg-purple-600 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold">1</span>
-              <h3 className="font-bold text-white">Gruppe beitreten</h3>
+        {/* How it works */}
+        <div className="w-full max-w-2xl mb-12 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <h2 className="text-2xl font-bold text-center mb-6 text-white">So funktioniert's</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="glass p-5 rounded-2xl text-center border border-purple-500/20 hover:border-purple-500/50 transition-all">
+              <div className="w-12 h-12 bg-purple-600/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Users className="w-6 h-6 text-purple-400" />
+              </div>
+              <h3 className="font-bold text-white mb-2">1. Lobby erstellen</h3>
+              <p className="text-sm text-slate-400">Lade Freunde ein und startet eine Runde</p>
             </div>
-            <p className="text-xs text-slate-400 pl-10">
-              Tritt der Google Group bei, um für den Test freigeschaltet zu werden.
-            </p>
-            <a 
-              href={googleGroupLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ml-10 block py-3 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition-all text-center shadow-lg btn-press"
-            >
-              Google Group beitreten
-            </a>
+            <div className="glass p-5 rounded-2xl text-center border border-pink-500/20 hover:border-pink-500/50 transition-all">
+              <div className="w-12 h-12 bg-pink-600/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Music className="w-6 h-6 text-pink-400" />
+              </div>
+              <h3 className="font-bold text-white mb-2">2. Musik hören</h3>
+              <p className="text-sm text-slate-400">Alle hören den gleichen Song – außer einer!</p>
+            </div>
+            <div className="glass p-5 rounded-2xl text-center border border-yellow-500/20 hover:border-yellow-500/50 transition-all">
+              <div className="w-12 h-12 bg-yellow-600/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                <HelpCircle className="w-6 h-6 text-yellow-400" />
+              </div>
+              <h3 className="font-bold text-white mb-2">3. Imposter finden</h3>
+              <p className="text-sm text-slate-400">Votet den Imposter raus, der nicht im Takt ist!</p>
+            </div>
           </div>
+        </div>
 
-          {/* Step 2 */}
-          <div className="bg-slate-700/50 p-4 rounded-2xl text-left space-y-3 border border-slate-600/50 hover:border-pink-500/50 transition-colors card-interactive">
-            <div className="flex items-center gap-3">
-              <span className="bg-pink-600 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold">2</span>
-              <h3 className="font-bold text-white">App herunterladen</h3>
-            </div>
-            <p className="text-xs text-slate-400 pl-10">
-              Lade die App aus dem Play Store herunter und starte das Spiel!
-            </p>
+        {/* Download Section */}
+        <div className="w-full max-w-md glass p-8 rounded-3xl border border-slate-700 shadow-2xl text-center space-y-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+          <h2 className="text-2xl font-bold text-white">Jetzt spielen!</h2>
+          <p className="text-slate-400 text-sm">
+            Kostenlos für Android verfügbar
+          </p>
+
+          <div className="space-y-4">
+            {/* Play Store Button */}
             <a 
               href={androidLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="ml-10 block py-3 bg-green-600 hover:bg-green-500 text-white text-sm font-bold rounded-xl transition-all text-center shadow-lg btn-press"
+              className="w-full flex items-center justify-center gap-3 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-2xl transition-all shadow-lg btn-press"
             >
-              Im Play Store laden
+              <PlayCircle className="w-6 h-6" />
+              <span>Aus dem Play Store laden</span>
             </a>
-          </div>
 
-          {/* Discord */}
-          <div className="bg-slate-700/50 p-4 rounded-2xl text-left space-y-3 border border-slate-600/50 hover:border-indigo-500/50 transition-colors card-interactive">
-            <div className="flex items-center gap-3">
-              <span className="bg-indigo-600 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold">💬</span>
-              <h3 className="font-bold text-white">Community beitreten</h3>
-            </div>
-            <p className="text-xs text-slate-400 pl-10">
-              Tritt unserem Discord bei für Updates, Support und um Mitspieler zu finden!
-            </p>
+            {/* Discord Button */}
             <a 
               href={discordLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="ml-10 block py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl transition-all text-center shadow-lg btn-press"
+              className="w-full flex items-center justify-center gap-3 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all shadow-lg btn-press"
             >
-              Discord beitreten
+              <Users className="w-5 h-5" />
+              <span>Discord Community</span>
             </a>
           </div>
-        </div>
 
-        <div className="pt-4 border-t border-slate-700">
-          <p className="text-xs text-slate-500">
-            Danke für deine Unterstützung! ❤️
+          <p className="text-xs text-slate-500 pt-2">
+            iOS-Version kommt bald! 🍎
           </p>
         </div>
+
+        {/* Features */}
+        <div className="w-full max-w-2xl mt-12 animate-slide-up" style={{ animationDelay: '0.3s' }}>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+            <div className="p-4">
+              <div className="text-3xl mb-2">🎵</div>
+              <p className="text-sm text-slate-400">Spotify Playlists</p>
+            </div>
+            <div className="p-4">
+              <div className="text-3xl mb-2">👥</div>
+              <p className="text-sm text-slate-400">3-10 Spieler</p>
+            </div>
+            <div className="p-4">
+              <div className="text-3xl mb-2">🏆</div>
+              <p className="text-sm text-slate-400">Ranglisten</p>
+            </div>
+            <div className="p-4">
+              <div className="text-3xl mb-2">🎉</div>
+              <p className="text-sm text-slate-400">Party-Modus</p>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Footer */}
+      <footer className="w-full max-w-4xl py-6 border-t border-slate-800 text-center">
+        <p className="text-sm text-slate-500">
+          © 2025 OneOff · Gemacht mit ❤️ von Anntimo
+        </p>
+      </footer>
     </main>
   );
 }
@@ -731,5 +769,5 @@ export default function Home() {
     );
   }
 
-  return showGame ? <GameEntry /> : <BetaLanding />;
+  return showGame ? <GameEntry /> : <HomepageLanding />;
 }
