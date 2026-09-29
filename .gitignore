@@ -28,6 +28,18 @@ serviceAccountKey.json
 google-services.json
 secrets.json
 
+# Admin-/Code-Generator-Tooling bleibt lokal, gehoert nicht ins Repo
+# (ermoglicht das Erstellen von Pro-Feature-Freischaltungen).
+music-imposter-app/server/admin/
+
+# Lokale Flutter-Testbuilds / Arbeitsordner (nicht Teil des Repo-Inhalts)
+fluttertest/
+oneoff_flutter/
+.git-cleanup/
+.cap8-template/
+android-build/
+flutter-setup/
+
 # ---------------------------------------------------------------------
 # Dependencies / Build-Output (Node / Next.js)
 # ---------------------------------------------------------------------
