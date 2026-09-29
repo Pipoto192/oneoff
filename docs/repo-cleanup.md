@@ -1,7 +1,33 @@
 # Repo-Cleanup & Secrets-Hygiene - OneOff / Music Imposter
 
 **Stand:** 29.09.2026 · **Autor:** repo-auditor · **Scope:** `C:\Users\Timo\Documents\Apps\OneOff`
-**Status:** Audit abgeschlossen. Es wurde **nichts gelöscht**. Lokal geändert wurden nur zwei Dateien: `.gitignore` (gehärtet, jetzt UTF-8) und `.env.example` (neu).
+**Status:** ✅ **Cutover durchgeführt.** Repo neu aufgesetzt und auf `main` force gepusht.
+
+### Ausführungsstand (29.09.2026)
+
+| Schritt | Status | Beleg |
+|---|---|---|
+| Audit + Secret-Scan | erledigt | Teil 0.3 dieses Dokuments, `docs/secret-rotation.md` |
+| `.gitignore` gehärtet (UTF-8, Regeln aktiviert) | erledigt | `git check-ignore` bestätigt 6/6 Sensibles |
+| Saubere Quelle **aus dem lokalen Workspace** gebaut | erledigt | nicht aus dem Remote-Klon – der war auf v0.3.1 zurück und hätte 66/130 Dateien zurückgedreht |
+| Keystore + Passwort aus `build.gradle` externalisiert | erledigt | `keystore.properties`-Muster, `.example` als Vorlage |
+| `GET /debug` + `.env`-Logging entfernt | erledigt | Code + lokaler Workspace |
+| `server/admin/` aus Repo, lokal per `.gitignore` gehalten | erledigt | `git check-ignore` trifft |
+| Force-Push auf `main` | erledigt | `main` = `4b66e97`, 2 Commits, 131 Dateien, 10,6 MB, 0 verbotene Pfade |
+| `deploy-server` gelöscht | **absichtlich NICHT** | eigener Orphan-Root `5fffb9a`, keine Secrets (geprüft); Löschen hätte den Koyeb-Deploy gekippt |
+| Secrets rotieren | **offen** | siehe `docs/secret-rotation.md` – P0-Punkte sind noch nicht gemacht |
+| GitHub-Cache-Purge | **offen** | Support-Ticket nötig; solange `forks = 0` möglich |
+| Server neu deployen (damit `/debug` live weg ist) | **offen** | Code ist weg, die laufende Koyeb-Instanz noch nicht aktualisiert |
+
+> ⚠️ Der Force-Push ist **nur Hygiene**. Der kompromittierte Signing-Key ist erst nach
+> Teil B (`docs/secret-rotation.md`, P0) unschädlich gemacht.
+
+Lokales Backup der alten 62-Commits-History: `.git-cleanup/oneoff-clone` (614 MB) – erst
+löschen, wenn der neue Stand verifiziert ist.
+
+Lokal geändert außerdem: `.gitignore`, `.env.example`, `client/android/app/build.gradle`,
+`client/android/keystore.properties` (neu, ignoriert), `client/android/keystore.properties.example` (neu),
+`music-imposter-app/server/index.js`, `docs/secret-rotation.md` (neu).
 
 > **Goldene Regel:** Alles, was jemals in ein GitHub-Repo gepusht wurde, gilt als **kompromittiert** - auch nach dem Löschen. Es lebt in der Git-History, in Forks, in PR-Refs, in GitHub-Caches und ggf. in Logs weiter.
 > Reihenfolge daher immer: **1. Secrets rotieren → 2. History bereinigen bzw. neu aufsetzen → 3. pushen.**
