@@ -1,0 +1,114 @@
+# =====================================================================
+# OneOff / Music Imposter - Git-Hygiene (Root)
+# ---------------------------------------------------------------------
+# WICHTIG: Diese Datei MUSS als UTF-8 (ohne BOM) gespeichert werden.
+# Die vorherige Version war UTF-16LE kodiert (Nullbytes) - Git konnte
+# sie nicht parsen, deshalb wurden node_modules/.env/APK-Dateien
+# faktisch NICHT ignoriert. Beim Bearbeiten immer UTF-8 verwenden.
+# Hinweis: Git kennt KEINE Kommentare am Zeilenende - Kommentare immer
+# in eine eigene Zeile schreiben.
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# Secrets / Credentials (niemals committen!)
+# ---------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+keystore.properties
+local.properties
+*.pem
+*.p12
+*.key
+*.p8
+*.mobileprovision
+serviceAccountKey.json
+google-services.json
+secrets.json
+
+# ---------------------------------------------------------------------
+# Dependencies / Build-Output (Node / Next.js)
+# ---------------------------------------------------------------------
+node_modules/
+.pnp
+.pnp.*
+.next/
+out/
+dist/
+build/
+coverage/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.log
+
+# ---------------------------------------------------------------------
+# Android / Gradle / Capacitor
+# ---------------------------------------------------------------------
+.gradle/
+.cxx/
+.externalNativeBuild/
+capacitor-cordova-android-plugins/
+*.apk
+*.aab
+*.aar
+*.ap_
+*.dex
+*.class
+*.hprof
+captures/
+lint/intermediates/
+lint/generated/
+lint/outputs/
+lint/tmp/
+client/android/app/src/main/assets/public/
+client/android/app/src/main/assets/capacitor.config.json
+client/android/app/src/main/assets/capacitor.plugins.json
+client/android/app/src/main/res/xml/config.xml
+
+# ---------------------------------------------------------------------
+# Flutter (falls ein Flutter-Client dazukommt)
+# ---------------------------------------------------------------------
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+oneoff_flutter/build/
+oneoff_flutter/.dart_tool/
+
+# ---------------------------------------------------------------------
+# Scratch / One-off (nicht Teil des Projekts)
+# ---------------------------------------------------------------------
+.cap8-template/
+
+# ---------------------------------------------------------------------
+# IDE / Editor
+# ---------------------------------------------------------------------
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.iml
+*.swp
+*~
+
+# ---------------------------------------------------------------------
+# OS
+# ---------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------------------------------------------------------------------
+# Legacy: einzelne APK-Namen (bleiben wie bisher; *.apk deckt sie ab)
+# ---------------------------------------------------------------------
+music-imposter.apk
+music-imposter-v2.apk
+oneoff-v1.apk
+oneoff-v2.apk

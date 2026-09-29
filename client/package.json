@@ -1,0 +1,37 @@
+{
+  "name": "client",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "build:mobile": "cross-env NEXT_PUBLIC_IS_CAPACITOR=true next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@capacitor-community/admob": "^8.1.0",
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/device": "^8.0.3",
+    "axios": "^1.13.2",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.2.3",
+    "lucide-react": "^0.554.0",
+    "next": "^16.0.10",
+    "querystring": "^0.2.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@tailwindcss/postcss": "^4",
+    "cross-env": "^10.1.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.4",
+    "tailwindcss": "^4"
+  }
+}
